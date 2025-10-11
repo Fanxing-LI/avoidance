@@ -1,0 +1,47 @@
+env:
+  num_agent_per_scene: 100
+  max_episode_steps: 256
+  scene_kwargs:
+    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
+  random_kwargs:
+    state_generator:
+      class: Uniform
+      kwargs:
+        - position:
+            mean: [ 15.0, 0.0, 1.5 ]
+            half: [ 5., 5., 1.0 ]
+          heading: True
+  dynamics_kwargs:
+    dt: 0.03
+    ctrl_dt: 0.03
+    comm_delay: 0.06
+    ctrl_delay: True
+    action_type: "bodyrate"
+  visual: False
+  device: cpu
+  requires_grad: True
+  tensor_output: True
+
+eval_env:
+  num_agent_per_scene: 4
+  visual: False
+  max_episode_steps: 256
+  tensor_output: True
+  sensor_kwargs: []
+#  random_kwargs:
+#    state_generator:
+#      class: Uniform
+#      kwargs:
+#        - position:
+#            mean: [ 15.0, 0.0, 1 ]
+#            half: [ 10., 10., 0.2 ]
+#          heading: True
+  scene_kwargs:
+    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
+    render_settings:
+      mode: fix
+      view: custom
+      resolution: [1080,1920]
+      position: [[7., 6.8, 5.5], [15, 0, 2.5]]
+      trajectory: True
+#  target_cat: True

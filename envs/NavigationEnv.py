@@ -1,0 +1,122 @@
+import os
+
+import numpy as np
+from habitat_sim.sensor import SensorType
+
+from VisFly.envs.base.droneGymEnv import DroneGymEnvsBase
+from typing import Optional, Dict
+import torch as th
+from habitat_sim import SensorType
+from gymnasium import spaces
+
+from VisFly.utils.type import TensorDict
+
+dl = lambda  x: x.clone().detach()
+
+def get_along_vertical_vector(base, obj):
+    base_norm = base.norm(dim=1, keepdim=True)
+    obj_norm = obj.norm(dim=1, keepdim=True)
+    base_normal = base / (base_norm + 1e-8)
+    along_obj_norm = (obj * base_normal).sum(dim=1, keepdim=True)
+    along_vector = base_normal * along_obj_norm
+    vertical_vector = obj - along_vector
+    vertical_obj_norm = vertical_vector.norm(dim=1)
+    return along_obj_norm.squeeze(), vertical_obj_norm, base_norm.squeeze()
+
+
+class NavigationEnv(DroneGymEnvsBase):
+    def __init__(
+            self,
+            num_agent_per_scene: int = 1,
+            num_scene: int = 1,
+            seed: int = 42,
+            visual: bool = True,
+            requires_grad: bool = False,
+            random_kwargs: dict = {},
+            dynamics_kwargs: dict = {},
+            scene_kwargs: dict = {},
+            sensor_kwargs: list = {},
+            device: str = "cpu",
+            target: Optional[th.Tensor] = None,
+            max_episode_steps: int = 256,
+            tensor_output: bool = True,
+            max_target_dis: float = 5.0,
+            # target_cat: bool = True,
+    ):
+
+        super().__init__(
+            num_agent_per_scene=num_agent_per_scene,
+            num_scene=num_scene,
+            seed=seed,
+            visual=visual,
+            requires_grad=requires_grad,
+            random_kwargs=random_kwargs,
+            dynamics_kwargs=dynamics_kwargs,
+            scene_kwargs=scene_kwargs,
+            sensor_kwargs=sensor_kwargs,
+            device=device,
+            max_episode_steps=max_episode_steps,
+            tensor_output=tensor_output,
+        )
+
+        self.target = th.ones((self.num_envs, 1)) @ th.as_tensor([15, 0., 1] if target is None else target).reshape(1, -1)
+        self.max_target_dis = max_target_dis
+        self.success_radius = 0.5
+
+    def get_observation(
+            self,
+            indices=None
+    ) -> Dict:
+
+        # target cat
+        # rela = self.target - self.position
+        # unit_rela = rela / (rela.norm(dim=1, keepdim=True)+1e-6)
+        # distance = rela.norm(dim=1, keepdim=True).clip(0, self.max_target_dis) / self.max_target_dis
+        orientation = self.envs.dynamics._orientation.clone()
+        rela = self.target - self.position
+        rela_dis = rela.norm(dim=1, keepdim=True)
+        rela_dis = th.ones((self.num_envs, 1), device=self.device)
+        normal_rela = rela / rela_dis.clamp_min(1.0).detach()
+        head_target = orientation.world_to_head(normal_rela.T).T
+        head_velocity = orientation.world_to_head((self.velocity-0).T).T
+        state = th.hstack([
+            # rela / 10,
+            head_target,
+            self.orientation,
+            # self.velocity / 10,
+            head_velocity / 10,
+            self.angular_velocity / 10,
+        ]).to(self.device)
+
+        return TensorDict({
+            "state": state
+        })
+
+    def get_success(self) -> th.Tensor:
+        return th.zeros((self.num_envs,), dtype=th.bool, device=self.device)
+        return ((self.position - self.target).norm(dim=1) <= self.success_radius) & \
+                (self.velocity.norm(dim=1) <= 0.05)
+
+    def get_reward(self) -> th.Tensor:
+        # precise and stable target flight
+        base_r = 0.1
+
+        pos_r = (self.position - self.target).norm(dim=1) * -0.005
+        vel_r = (self.velocity - 0).norm(dim=1) * -0.003
+        ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.002
+
+        act_r = self._action.norm(dim=1).cpu() * -0.000
+
+        #  heading alignment
+        # unit_velocity = self.velocity / (self.velocity.norm(dim=1)+1e-6)
+        # align = (unit_velocity * self.direction).sum(dim=1)
+
+
+        reward = {
+            "reward": base_r + pos_r + vel_r + ang_r + act_r,
+            "pos_r": dl(pos_r),
+            "vel_r": dl(vel_r),
+            "ang_r": dl(ang_r),
+            "act_r": dl(act_r),
+        }
+        return reward
