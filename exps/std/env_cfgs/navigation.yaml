@@ -3,14 +3,23 @@ env:
   max_episode_steps: 256
   scene_kwargs:
     path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
+#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_simple_pillars
+#  sensor_settings:
+#    - sensor_type: depth
+#      uuid: depth
+#      resolution: [16,16]
+#      position: [0,0,-0.1]
   random_kwargs:
     state_generator:
       class: Uniform
       kwargs:
         - position:
             mean: [ 15.0, 0.0, 1.5 ]
-#            half: [ 10., 10., 1.0 ]
-            half: [ 5., 5., 1.0 ]
+            half: [ 12., 12., 1.0 ]
+#            half: [ 5., 5., 1.0 ]
+          orientation:
+            mean: [0., 0., 0.]
+            half: [0., 0., 1.]
           heading: True
   dynamics_kwargs:
     dt: 0.03
@@ -18,15 +27,17 @@ env:
     comm_delay: 0.06
     ctrl_delay: True
     action_type: "bodyrate"
+
   visual: False
   device: cpu
   requires_grad: True
   tensor_output: True
+  max_target_dis: 7.0
 
 eval_env:
   num_agent_per_scene: 4
   visual: False
-  max_episode_steps: 384
+  max_episode_steps: 256
   tensor_output: True
   sensor_kwargs: []
   random_kwargs:
@@ -37,13 +48,19 @@ eval_env:
             mean: [ 15.0, 0.0, 1 ]
 #            half: [ 5., 5., 0.2 ]
             half: [ 12., 12., 0.1 ]
+          orientation:
+            mean: [0., 0., 0.]
+            half: [0., 0., 1.]
           heading: True
   scene_kwargs:
     path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
     render_settings:
       mode: fix
-      view: custom
-      resolution: [1080,1920]
-      position: [[7., 6.8, 5.5], [15, 0, 2.5]]
+#      view: custom
+#      position: [[7., 6.8, 5.5], [15, 0, 2.5]]
+      resolution: [1080,1080]
+      view: top
+      position: [[15, 0, 15.5]]
       trajectory: True
+      FOV: True
   max_target_dis: 6.0

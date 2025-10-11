@@ -113,15 +113,22 @@ class NavigationEnv(DroneGymEnvsBase):
         act_r = self._action.norm(dim=1).cpu() * -0.000
 
         #  heading alignment
-        # unit_velocity = self.velocity / (self.velocity.norm(dim=1)+1e-6)
-        # align = (unit_velocity * self.direction).sum(dim=1)
+        unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
+        align = (unit_velocity * self.direction).sum(dim=1)
+        align_r = align * self.velocity.norm(dim=1) * 0.001
+
+        # collision penalty
+        # velocity
+
+        # position
 
 
         reward = {
-            "reward": base_r + pos_r + vel_r + ang_r + act_r,
+            "reward": base_r + pos_r + vel_r + ang_r + act_r + align_r,
             "pos_r": dl(pos_r),
             "vel_r": dl(vel_r),
             "ang_r": dl(ang_r),
+            "align_r": dl(align_r),
             "act_r": dl(act_r),
         }
         return reward
