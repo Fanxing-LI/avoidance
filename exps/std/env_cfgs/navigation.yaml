@@ -9,6 +9,7 @@ env:
       kwargs:
         - position:
             mean: [ 15.0, 0.0, 1.5 ]
+#            half: [ 10., 10., 1.0 ]
             half: [ 5., 5., 1.0 ]
           heading: True
   dynamics_kwargs:
@@ -25,17 +26,18 @@ env:
 eval_env:
   num_agent_per_scene: 4
   visual: False
-  max_episode_steps: 256
+  max_episode_steps: 384
   tensor_output: True
   sensor_kwargs: []
-#  random_kwargs:
-#    state_generator:
-#      class: Uniform
-#      kwargs:
-#        - position:
-#            mean: [ 15.0, 0.0, 1 ]
-#            half: [ 10., 10., 0.2 ]
-#          heading: True
+  random_kwargs:
+    state_generator:
+      class: Uniform
+      kwargs:
+        - position:
+            mean: [ 15.0, 0.0, 1 ]
+#            half: [ 5., 5., 0.2 ]
+            half: [ 12., 12., 0.1 ]
+          heading: True
   scene_kwargs:
     path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
     render_settings:
@@ -44,4 +46,4 @@ eval_env:
       resolution: [1080,1920]
       position: [[7., 6.8, 5.5], [15, 0, 2.5]]
       trajectory: True
-#  target_cat: True
+  max_target_dis: 6.0

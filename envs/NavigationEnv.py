@@ -40,8 +40,7 @@ class NavigationEnv(DroneGymEnvsBase):
             target: Optional[th.Tensor] = None,
             max_episode_steps: int = 256,
             tensor_output: bool = True,
-            max_target_dis: float = 5.0,
-            # target_cat: bool = True,
+            max_target_dis: float = 0.0,
     ):
 
         super().__init__(
@@ -63,20 +62,26 @@ class NavigationEnv(DroneGymEnvsBase):
         self.max_target_dis = max_target_dis
         self.success_radius = 0.5
 
+
     def get_observation(
             self,
             indices=None
     ) -> Dict:
 
         # target cat
-        # rela = self.target - self.position
-        # unit_rela = rela / (rela.norm(dim=1, keepdim=True)+1e-6)
-        # distance = rela.norm(dim=1, keepdim=True).clip(0, self.max_target_dis) / self.max_target_dis
+        if self.max_target_dis:
+            rela = self.target - self.position
+            unit_rela = rela / (rela.norm(dim=1, keepdim=True)+1e-6)
+            distance = rela.norm(dim=1, keepdim=True).clip(0, self.max_target_dis)
+            new_target = (unit_rela * distance+self.position).detach()
+        else:
+            new_target = self.target
+
         orientation = self.envs.dynamics._orientation.clone()
-        rela = self.target - self.position
+        rela = new_target - self.position
         rela_dis = rela.norm(dim=1, keepdim=True)
-        rela_dis = th.ones((self.num_envs, 1), device=self.device)
-        normal_rela = rela / rela_dis.clamp_min(1.0).detach()
+        # rela_dis = th.ones((self.num_envs, 1), device=self.device)
+        normal_rela = rela #/ rela_dis.clamp_min(1.0).detach()
         head_target = orientation.world_to_head(normal_rela.T).T
         head_velocity = orientation.world_to_head((self.velocity-0).T).T
         state = th.hstack([
