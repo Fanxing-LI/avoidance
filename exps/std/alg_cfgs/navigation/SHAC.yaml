@@ -6,26 +6,29 @@ algorithm:
       net_arch:
         state:
           layer: [512,]
+#          ln: True
 #          bn: True
-#        depth:
-#          channel: [ 32, 64, 128, 256 ]
-#          kernel_size: 4
-#          stride: 2
-#          padding: 1
-#          layer: [ ]
+        depth:
+          channel: [ 4, 16]
+          kernel_size: 2
+          stride: 2
+          padding: 1
+          layer: [256]
 #          ln: True
 #          bias: False
-
     critic:
       dist: mse
       n_critics: 2
       net_arch:
         layer: [512, 512]
+#        ln: True
 #        bn: True
     actor:
       dist: normal
       net_arch:
         layer: [512, 512]
+#        ln: True
+
 #        bn: True
 
     activation_fn: relu
@@ -34,7 +37,7 @@ algorithm:
       weight_decay: 0.00001
     share_features_extractor: False
 
-  learning_rate: 0.005
+  learning_rate: 0.001
   horizon: 96
   tau: 0.005
   gamma: 0.99
@@ -53,7 +56,8 @@ learn:
 
 test:
   is_fig: True
-  is_fig_save: True
+#  is_fig_save: True
   is_video: True
   is_video_save: True
+  is_sub_video: True
   render_kwargs: { }

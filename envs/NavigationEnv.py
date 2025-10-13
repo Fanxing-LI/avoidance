@@ -8,7 +8,7 @@ from typing import Optional, Dict
 import torch as th
 from habitat_sim import SensorType
 from gymnasium import spaces
-
+from VisFly.utils.randomization import TargetUniformRandomizer
 from VisFly.utils.type import TensorDict
 
 dl = lambda  x: x.clone().detach()
@@ -40,7 +40,8 @@ class NavigationEnv(DroneGymEnvsBase):
             target: Optional[th.Tensor] = None,
             max_episode_steps: int = 256,
             tensor_output: bool = True,
-            max_target_dis: float = 0.0,
+            max_target_dis: float = 7.0,
+            target_random: bool = True
     ):
 
         super().__init__(
@@ -58,10 +59,31 @@ class NavigationEnv(DroneGymEnvsBase):
             tensor_output=tensor_output,
         )
 
+        self.pre_define_target = target is not None
         self.target = th.ones((self.num_envs, 1)) @ th.as_tensor([15, 0., 1] if target is None else target).reshape(1, -1)
         self.max_target_dis = max_target_dis
         self.success_radius = 0.5
 
+        self.target_randomizers = [
+            TargetUniformRandomizer(
+                position={
+                    "mean":[0,0,0],"half":[max_target_dis, max_target_dis, 1.0]
+                },
+                min_dis=0.5,
+                max_dis=max_target_dis,
+                is_collision_func=self.envs.sceneManager.get_point_is_collision,
+                scene_id=i // self.num_agent_per_scene
+            ) for i in range(self.num_envs)
+        ]
+
+    def _reset_attr(self, indices=None):
+        super()._reset_attr(indices)
+
+        if not self.pre_define_target:
+            indices = np.arange(self.num_envs) if indices is None else indices
+            for i in indices:
+                pos, _, _, _ = self.target_randomizers[i].safe_generate(1, position=dl(self.position[i]))
+                self.target[i] = pos[0]
 
     def get_observation(
             self,
@@ -94,7 +116,8 @@ class NavigationEnv(DroneGymEnvsBase):
         ]).to(self.device)
 
         return TensorDict({
-            "state": state
+            "state": state,
+            "depth": 1/(1+th.tensor(self.sensor_obs["depth"]).clamp_min(0.1))
         })
 
     def get_success(self) -> th.Tensor:
@@ -110,25 +133,42 @@ class NavigationEnv(DroneGymEnvsBase):
         vel_r = (self.velocity - 0).norm(dim=1) * -0.003
         ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.002
 
-        act_r = self._action.norm(dim=1).cpu() * -0.000
+        # act_r = self._action.norm(dim=1).cpu() * -0.001
+        act_change_r = (self.envs.dynamics._pre_action[-1].to(self.device) -
+                        self.envs.dynamics._pre_action[-2].to(self.device)
+                        ).T.norm(dim=-1) * -0.002
 
         #  heading alignment
         unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
         align = (unit_velocity * self.direction).sum(dim=1)
-        align_r = align * self.velocity.norm(dim=1) * 0.001
+        align_r = align * self.velocity.norm(dim=1) * 0.002
 
         # collision penalty
+        thre_vel = 1
+        collision_dis = self.collision_vector.norm(dim=1)
+        collision_dir = self.collision_vector / (collision_dis.unsqueeze(1)+1e-6)
         # velocity
+        col_approach_velocity = (self.velocity * collision_dir).sum(dim=1)
+        col_vel_r = col_approach_velocity * (thre_vel-collision_dis).clamp(min=0, ) * -0.0001
 
         # position
-
+        k = 0.2
+        func = lambda x: k / (x+k)
+        func2 = lambda x: -x
+        col_dir_r = func(collision_dis) * -0.001
 
         reward = {
-            "reward": base_r + pos_r + vel_r + ang_r + act_r + align_r,
+            "reward": base_r + pos_r + vel_r + ang_r + align_r
+                    + act_change_r
+                      # + col_vel_r + col_dir_r
+            ,
             "pos_r": dl(pos_r),
             "vel_r": dl(vel_r),
             "ang_r": dl(ang_r),
             "align_r": dl(align_r),
-            "act_r": dl(act_r),
+            "col_vel_r": dl(col_vel_r),
+            "col_dir_r": dl(col_dir_r),
+            # "act_r": dl(act_r),
+            "act_change_r": dl(act_change_r),
         }
         return reward

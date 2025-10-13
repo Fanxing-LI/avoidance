@@ -272,6 +272,7 @@ class Policy(nn.Module):
         "sigmoid": nn.Sigmoid,
         "elu": nn.ELU,
         "silu": nn.SiLU,
+        "leaky_relu": nn.LeakyReLU,
     }
     optim_alias = {
         "adam": th.optim.Adam,
