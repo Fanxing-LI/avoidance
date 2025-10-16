@@ -1,9 +1,10 @@
 env:
-  num_agent_per_scene: 100
-  max_episode_steps: 256
+  num_agent_per_scene: 10
+  num_scene: 10
+  max_episode_steps: 192
   scene_kwargs:
-    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
-#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_simple_pillars
+#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
+    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_dense
   sensor_kwargs:
     - sensor_type: depth
       uuid: depth
@@ -34,6 +35,7 @@ env:
   requires_grad: True
   tensor_output: True
   max_target_dis: 6.0
+  is_collision_reset: False
 
 eval_env:
   num_scene: 1
@@ -41,6 +43,15 @@ eval_env:
   visual: True
   max_episode_steps: 384
   tensor_output: True
+  sensor_kwargs:
+    - sensor_type: depth
+      uuid: depth
+      resolution: [ 16,16 ]
+      position: [ 0,0,-0.1 ]
+    - sensor_type: depth
+      uuid: depth2
+      resolution: [ 64,64 ]
+      position: [ 0,0,-0.1 ]
   random_kwargs:
     state_generator:
       class: Uniform
@@ -49,14 +60,17 @@ eval_env:
 #            mean: [ 15.0, 0.0, 1 ]
 #            half: [ 12., 12., 0.1 ]
             mean: [ 1.0, 0.0, 1 ]
-            half: [ 0., 4., 0.2 ]
+            half: [ 0., 10., 0.2 ]
           orientation:
             mean: [0., 0., 0.]
-            half: [0., 0., 1.5]
+            half: [0., 0., 0.]
 #          heading: True
+          test: True
+          xyz_num: [1,5,1]
   scene_kwargs:
-    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
-#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_simple_pillars
+#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
+#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_dense
+    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_simple_pillars
     render_settings:
       mode: fix
 #      view: custom
@@ -67,4 +81,4 @@ eval_env:
       trajectory: True
       FOV: True
   max_target_dis: 5.5
-  target: [26,0,1.5]
+  target: [[26,-12,1.5],[26,-6,1.5],[26,0,1.5],[26,6,1.5],[26,12,1.5]]

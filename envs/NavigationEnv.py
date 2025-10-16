@@ -41,7 +41,9 @@ class NavigationEnv(DroneGymEnvsBase):
             max_episode_steps: int = 256,
             tensor_output: bool = True,
             max_target_dis: float = 7.0,
-            target_random: bool = True
+            target_random: bool = True,
+            *args,
+            **kwargs
     ):
 
         super().__init__(
@@ -57,10 +59,18 @@ class NavigationEnv(DroneGymEnvsBase):
             device=device,
             max_episode_steps=max_episode_steps,
             tensor_output=tensor_output,
+            *args,
+            **kwargs
         )
 
         self.pre_define_target = target is not None
-        self.target = th.ones((self.num_envs, 1)) @ th.as_tensor([15, 0., 1] if target is None else target).reshape(1, -1)
+        if target is not None:
+            if not isinstance(target[0], list):
+                self.target = th.ones((self.num_envs, 1)) @ th.as_tensor(target)
+            else:
+                self.target = th.as_tensor(target)
+        else:
+            self.target = th.ones((self.num_envs, 1)) @ th.as_tensor([[15, 0., 1]])
         self.max_target_dis = max_target_dis
         self.success_radius = 0.5
 
@@ -115,10 +125,14 @@ class NavigationEnv(DroneGymEnvsBase):
             self.angular_velocity / 10,
         ]).to(self.device)
 
-        return TensorDict({
+        obs = TensorDict({
             "state": state,
             "depth": 1/(1+th.tensor(self.sensor_obs["depth"]).clamp_min(0.1))
         })
+
+        if "depth2" in list(self.observation_space.keys()):
+            obs["depth2"] = th.tensor(self.sensor_obs["depth2"])
+        return obs
 
     def get_success(self) -> th.Tensor:
         return th.zeros((self.num_envs,), dtype=th.bool, device=self.device)
@@ -144,30 +158,30 @@ class NavigationEnv(DroneGymEnvsBase):
         align_r = align * self.velocity.norm(dim=1) * 0.002
 
         # collision penalty
-        thre_vel = 1
-        collision_dis = self.collision_vector.norm(dim=1)
+        thre_vel = 5.0
+        collision_dis = self.collision_vector.norm(dim=1).clamp_min(0.)
         collision_dir = self.collision_vector / (collision_dis.unsqueeze(1)+1e-6)
         # velocity
-        col_approach_velocity = (self.velocity * collision_dir).sum(dim=1)
-        col_vel_r = col_approach_velocity * (thre_vel-collision_dis).clamp(min=0, ) * -0.0001
+        col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
+        col_vel_r = col_approach_velocity * (thre_vel-collision_dis.detach()).clamp(min=0, ) * -0.00000
 
         # position
-        k = 0.2
+        k = 0.1
         func = lambda x: k / (x+k)
         func2 = lambda x: -x
-        col_dir_r = func(collision_dis) * -0.001
+        col_dis_r = func(collision_dis) * -0.1
 
         reward = {
             "reward": base_r + pos_r + vel_r + ang_r + align_r
                     + act_change_r
-                      # + col_vel_r + col_dir_r
+                      + col_vel_r + col_dis_r
             ,
             "pos_r": dl(pos_r),
             "vel_r": dl(vel_r),
             "ang_r": dl(ang_r),
             "align_r": dl(align_r),
             "col_vel_r": dl(col_vel_r),
-            "col_dir_r": dl(col_dir_r),
+            "col_dis_r": dl(col_dis_r),
             # "act_r": dl(act_r),
             "act_change_r": dl(act_change_r),
         }

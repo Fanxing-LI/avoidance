@@ -51,7 +51,7 @@ algorithm:
   scene_freq: 3000000
 
 learn:
-  total_timesteps: 5000000
+  total_timesteps: 10000000
   # log_interval: 20
 
 test:

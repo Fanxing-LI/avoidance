@@ -61,7 +61,6 @@ def main(debug_env=False):
             **env_config["env"]
         )
 
-        
         model = alg_alias[args.algorithm](
             env=env,
             seed=args.seed,
@@ -94,6 +93,7 @@ def main(debug_env=False):
             name=args.weight
         )
         test_handle.test(**config["test"])
+
 
 if __name__ == "__main__":
     main()
