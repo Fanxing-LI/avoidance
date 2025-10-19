@@ -145,12 +145,12 @@ class NavigationEnv(DroneGymEnvsBase):
 
         pos_r = (self.position - self.target).norm(dim=1) * -0.005
         vel_r = (self.velocity - 0).norm(dim=1) * -0.003
-        ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.002
+        ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.005
 
         # act_r = self._action.norm(dim=1).cpu() * -0.001
-        act_change_r = (self.envs.dynamics._pre_action[-1].to(self.device) -
-                        self.envs.dynamics._pre_action[-2].to(self.device)
-                        ).T.norm(dim=-1) * -0.002
+        act_change_r = (self.envs.dynamics._pre_action[-1].to(self.device).T -
+                        self._action.to(self.device)
+                        ).norm(dim=-1) * -0.000
 
         #  heading alignment
         unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
@@ -158,18 +158,18 @@ class NavigationEnv(DroneGymEnvsBase):
         align_r = align * self.velocity.norm(dim=1) * 0.002
 
         # collision penalty
-        thre_vel = 5.0
+        thre_vel = 1.0
         collision_dis = self.collision_vector.norm(dim=1).clamp_min(0.)
         collision_dir = self.collision_vector / (collision_dis.unsqueeze(1)+1e-6)
         # velocity
         col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
-        col_vel_r = col_approach_velocity * (thre_vel-collision_dis.detach()).clamp(min=0, ) * -0.00000
+        col_vel_r = col_approach_velocity * (thre_vel-collision_dis.detach()).clamp(min=0, ).pow(2) * -0.003
 
         # position
-        k = 0.1
+        k = 0.02
         func = lambda x: k / (x+k)
         func2 = lambda x: -x
-        col_dis_r = func(collision_dis) * -0.1
+        col_dis_r = func(collision_dis) * -0.08
 
         reward = {
             "reward": base_r + pos_r + vel_r + ang_r + align_r

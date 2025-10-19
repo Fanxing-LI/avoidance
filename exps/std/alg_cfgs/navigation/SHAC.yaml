@@ -38,7 +38,7 @@ algorithm:
     share_features_extractor: False
 
   learning_rate: 0.001
-  horizon: 96
+  horizon: 128
   tau: 0.005
   gamma: 0.99
   device: cuda
