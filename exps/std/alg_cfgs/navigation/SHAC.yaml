@@ -9,11 +9,12 @@ algorithm:
 #          ln: True
 #          bn: True
         depth:
-          channel: [ 4, 16]
+          channel: [ 4, 16,64]
           kernel_size: 2
           stride: 2
           padding: 1
           layer: [256]
+#          max_pool: 2
 #          ln: True
 #          bias: False
     critic:
@@ -37,7 +38,13 @@ algorithm:
       weight_decay: 0.00001
     share_features_extractor: False
 
-  learning_rate: 0.001
+  learning_rate:
+    class: cosine
+    kwargs:
+      initial: 0.005
+      final: 0.001
+      period: 0.1
+
   horizon: 128
   tau: 0.005
   gamma: 0.99
@@ -51,7 +58,7 @@ algorithm:
   scene_freq: 3000000
 
 learn:
-  total_timesteps: 10000000
+  total_timesteps: 20000000
   # log_interval: 20
 
 test:

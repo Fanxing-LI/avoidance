@@ -322,6 +322,8 @@ class BPTT(OffPolicyAlgorithm):
                 while self.num_timesteps < total_timesteps:
                     self.check_and_reset_scene()
 
+                    self._update_current_progress_remaining(num_timesteps=self.num_timesteps, total_timesteps=total_timesteps)
+
                     self.train(
                         gradient_steps=self.gradient_steps,
                         batch_size=self.batch_size,

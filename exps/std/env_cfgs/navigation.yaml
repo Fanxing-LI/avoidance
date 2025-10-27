@@ -1,14 +1,15 @@
 env:
   num_agent_per_scene: 10
   num_scene: 10
-  max_episode_steps: 256
+  max_episode_steps: 255
   scene_kwargs:
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
-    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_dense
+    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_median
+#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
   sensor_kwargs:
     - sensor_type: depth
       uuid: depth
-      resolution: [16,16]
+      resolution: [12,16]
       position: [0,0,-0.1]
 
   random_kwargs:
@@ -36,6 +37,7 @@ env:
   tensor_output: True
   max_target_dis: 10.0
   is_collision_reset: False
+#  target: [[15,0,1]]
 
 eval_env:
   num_scene: 1
@@ -46,7 +48,7 @@ eval_env:
   sensor_kwargs:
     - sensor_type: depth
       uuid: depth
-      resolution: [ 16,16 ]
+      resolution: [ 12,16 ]
       position: [ 0,0,-0.1 ]
     - sensor_type: depth
       uuid: depth2
@@ -69,7 +71,7 @@ eval_env:
           xyz_num: [1,5,1]
   scene_kwargs:
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
-#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_dense
+#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_median
     path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_simple_pillars
     render_settings:
       mode: fix
@@ -80,5 +82,8 @@ eval_env:
       position: [[15, 0, 20.5]]
       trajectory: True
       FOV: True
-  max_target_dis: 8.
+      collision: True
+      approaching: True
+#  max_target_dis: 30.
+#  target: [[15,0,1]]
   target: [[26,-12,1.5],[26,-6,1.5],[26,0,1.5],[26,6,1.5],[26,12,1.5]]

@@ -127,7 +127,7 @@ class NavigationEnv(DroneGymEnvsBase):
 
         obs = TensorDict({
             "state": state,
-            "depth": 1/(1+th.tensor(self.sensor_obs["depth"]).clamp_min(0.1))
+            "depth": 1/(1+th.tensor(self.sensor_obs["depth"]/3).clamp_min(0.1))
         })
 
         if "depth2" in list(self.observation_space.keys()):
@@ -143,33 +143,39 @@ class NavigationEnv(DroneGymEnvsBase):
         # precise and stable target flight
         base_r = 0.1
 
-        pos_r = (self.position - self.target).norm(dim=1) * -0.005
+        pos_r = (self.position - self.target).norm(dim=1) * -0.01
+
+        scale = (self.position - self.target).norm(dim=1).detach().clamp_min(0.3)
+        pos_r = pos_r / scale
         vel_r = (self.velocity - 0).norm(dim=1) * -0.003
         ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.005
 
         # act_r = self._action.norm(dim=1).cpu() * -0.001
         act_change_r = (self.envs.dynamics._pre_action[-1].to(self.device).T -
                         self._action.to(self.device)
-                        ).norm(dim=-1) * -0.000
+                        ).norm(dim=-1) * -0.005
 
         #  heading alignment
         unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
         align = (unit_velocity * self.direction).sum(dim=1)
         align_r = align * self.velocity.norm(dim=1) * 0.002
 
+        share_factor_collision = 0.0000
         # collision penalty
         thre_vel = 1.0
         collision_dis = self.collision_vector.norm(dim=1).clamp_min(0.)
         collision_dir = self.collision_vector / (collision_dis.unsqueeze(1)+1e-6)
+        # approaching_point = self.envs.approaching_point
         # velocity
-        col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
-        col_vel_r = col_approach_velocity * (thre_vel-collision_dis.detach()).clamp(min=0, ).pow(2) * -0.003
+        col_approach_velocity = (self.velocity * collision_dir).sum(dim=1).clamp_min(0.)
+        col_vel_r = col_approach_velocity * (thre_vel-collision_dis).clamp(min=0, ).pow(2) * -1 * share_factor_collision
 
         # position
-        k = 0.02
+        k = 0.01
         func = lambda x: k / (x+k)
+        func3 = lambda x: 2.5 * th.log(th.exp(-32*x))
         func2 = lambda x: -x
-        col_dis_r = func(collision_dis) * -0.08
+        col_dis_r = func3(collision_dis) * -1 * share_factor_collision
 
         reward = {
             "reward": base_r + pos_r + vel_r + ang_r + align_r
