@@ -8,12 +8,12 @@ algorithm:
           layer: [512,]
 #          ln: True
 #          bn: True
-        depth:
-          channel: [ 4, 16,64]
-          kernel_size: 2
-          stride: 2
-          padding: 1
-          layer: [256]
+#        depth:
+#          channel: [ 4, 16,64]
+#          kernel_size: 2
+#          stride: 2
+#          padding: 1
+#          layer: [512]
 #          max_pool: 2
 #          ln: True
 #          bias: False
