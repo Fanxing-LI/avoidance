@@ -3,8 +3,9 @@ env:
   num_scene: 10
   max_episode_steps: 384
   scene_kwargs:
-    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_empty
-#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_median
+#    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_empty
+    # path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_median
+   path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_median
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
   sensor_kwargs:
     - sensor_type: depth
@@ -14,75 +15,75 @@ env:
 
   random_kwargs:
     state_generator:
-      class: Uniform
-      kwargs:
-        - position:
-            mean: [ 30.0, 0.0, 1.5 ]
-            half: [ 1., 1., 0.5]
-#            half: [ 5., 5., 1.0 ]
-          orientation:
-            mean: [0., 0., 0.]
-            half: [0., 0., 3.14]
+#       class: Uniform
+#       kwargs:
+#         - position:
+#             mean: [ 30.0, 0.0, 1.5 ]
+#             half: [ 1., 1., 0.5]
+# #            half: [ 5., 5., 1.0 ]
+#           orientation:
+#             mean: [0., 0., 0.]
+#             half: [0., 0., 3.14]
 #          heading: True
-#      class: Union
-#      kwargs:
-#        - randomizers_kwargs:
-#            - class: Uniform
-#              kwargs:
-#                position:
-#                  mean: [ 7, 0.0, 2.0 ]
-#                  half: [ 6, 14., 1.0 ]
-#                orientation:
-#                  mean: [ 0., 0., 0. ]
-#                  half: [ 0., 0., 0.5 ]
-#                velocity:
-#                  mean: [ 0.5,0.,0.0 ]
-#                  half: [ 1.,1.,0.3 ]
-#                angular_velocity:
-#                  mean: [ 0.,0.,0. ]
-#                  half: [ 0.1,0.1,0.1 ]
-#            - class: Uniform
-#              kwargs:
-#                position:
-#                  mean: [ 23, 0.0, 2.0 ]
-#                  half: [ 6, 14., 1.0 ]
-#                orientation:
-#                  mean: [ 0., 0., 3.14 ]
-#                  half: [ 0., 0., 0.5 ]
-#                velocity:
-#                  mean: [ 0.5,0.,0.0 ]
-#                  half: [ 1.,1.,0.3 ]
-#                angular_velocity:
-#                  mean: [ 0.,0.,0. ]
-#                  half: [ 0.1,0.1,0.1 ]
-#            - class: Uniform
-#              kwargs:
-#                position:
-#                  mean: [ 15, 8, 2.0 ]
-#                  half: [ 14., 6, 1.0 ]
-#                orientation:
-#                  mean: [ 0., 0., -1.57 ]
-#                  half: [ 0., 0., 0.5]
-#                velocity:
-#                  mean: [ 0., -0.5,0.0 ]
-#                  half: [ 1.,1.,0.3 ]
-#                angular_velocity:
-#                  mean: [ 0.,0.,0. ]
-#                  half: [ 0.1,0.1,0.1 ]
-#            - class: Uniform
-#              kwargs:
-#                position:
-#                  mean: [ 15, -8, 2.0 ]
-#                  half: [ 14., 6, 1.0 ]
-#                orientation:
-#                  mean: [ 0., 0., 1.57 ]
-#                  half: [ 0., 0., 0.5]
-#                velocity:
-#                  mean: [ 0., 0.5,0.0 ]
-#                  half: [ 1.,1.,0.3 ]
-#                angular_velocity:
-#                  mean: [ 0.,0.,0. ]
-#                  half: [ 0.1,0.1,0.1 ]
+      class: Union
+      kwargs:
+        - randomizers_kwargs:
+            - class: Uniform
+              kwargs:
+                position:
+                  mean: [ 2, 0.0, 2.0 ]
+                  half: [ 1, 14., 1.0 ]
+                orientation:
+                  mean: [ 0., 0., 0. ]
+                  half: [ 0., 0., 0.5 ]
+                velocity:
+                  mean: [ 0.5,0.,0.0 ]
+                  half: [ 1.,1.,0.3 ]
+                angular_velocity:
+                  mean: [ 0.,0.,0. ]
+                  half: [ 0.1,0.1,0.1 ]
+            - class: Uniform
+              kwargs:
+                position:
+                  mean: [ 28, 0.0, 2.0 ]
+                  half: [ 1, 14., 1.0 ]
+                orientation:
+                  mean: [ 0., 0., 3.14 ]
+                  half: [ 0., 0., 0.5 ]
+                velocity:
+                  mean: [ 0.5,0.,0.0 ]
+                  half: [ 1.,1.,0.3 ]
+                angular_velocity:
+                  mean: [ 0.,0.,0. ]
+                  half: [ 0.1,0.1,0.1 ]
+            - class: Uniform
+              kwargs:
+                position:
+                  mean: [ 15, 13, 2.0 ]
+                  half: [ 14., 1, 1.0 ]
+                orientation:
+                  mean: [ 0., 0., -1.57 ]
+                  half: [ 0., 0., 0.5]
+                velocity:
+                  mean: [ 0., -0.5,0.0 ]
+                  half: [ 1.,1.,0.3 ]
+                angular_velocity:
+                  mean: [ 0.,0.,0. ]
+                  half: [ 0.1,0.1,0.1 ]
+            - class: Uniform
+              kwargs:
+                position:
+                  mean: [ 15, -13, 2.0 ]
+                  half: [ 14., 1, 1.0 ]
+                orientation:
+                  mean: [ 0., 0., 1.57 ]
+                  half: [ 0., 0., 0.5]
+                velocity:
+                  mean: [ 0., 0.5,0.0 ]
+                  half: [ 1.,1.,0.3 ]
+                angular_velocity:
+                  mean: [ 0.,0.,0. ]
+                  half: [ 0.1,0.1,0.1 ]
   dynamics_kwargs:
     dt: 0.03
     ctrl_dt: 0.03
@@ -113,27 +114,28 @@ eval_env:
       uuid: depth2
       resolution: [ 64,64 ]
       position: [ 0,0,-0.1 ]
-#  random_kwargs:
-#    state_generator:
-#      class: Uniform
-#      kwargs:
-#        - position:
-##            mean: [ 15.0, 0.0, 1 ]
-##            half: [ 12., 12., 0.1 ]
-#            mean: [ 1.0, 0.0, 1 ]
-#            half: [ 0., 10., 0.2 ]
-#          orientation:
-#            mean: [0., 0., 0.]
-#            half: [0., 0., 0.]
-##          heading: True
-#          test: True
-#          xyz_num: [1,5,1]
+  random_kwargs:
+    state_generator:
+      class: Uniform
+      kwargs:
+        - position:
+#            mean: [ 15.0, 0.0, 1 ]
+#            half: [ 12., 12., 0.1 ]
+            mean: [ 1.0, 0.0, 1 ]
+            half: [ 0., 10., 0.2 ]
+          orientation:
+            mean: [0., 0., 0.]
+            half: [0., 0., 0.]
+#          heading: True
+          test: True
+          xyz_num: [1,5,1]
 
   scene_kwargs:
-    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_empty
+#    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_empty
+#    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_low
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_median
-#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_simple_pillars
+    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_simple_pillars
     render_settings:
       mode: fix
 #      view: custom
@@ -147,5 +149,5 @@ eval_env:
       approaching: True
       axes: True
   max_target_dis: 9.
-#  target: [[15,0,1]]
+  target: [[3,0,0]]
 #  target: [[26,-12,1.5],[26,-6,1.5],[26,0,1.5],[26,6,1.5],[26,12,1.5]]

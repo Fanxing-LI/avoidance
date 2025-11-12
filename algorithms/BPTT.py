@@ -189,7 +189,7 @@ class BPTT(OffPolicyAlgorithm):
         # assert self.H >= 1, "horizon must be greater than 1"
         ent_coef_loss = None
         self.env.detach()
-        actor_loss = 0.
+        reward_loss, entropy_loss = 0., 0.
         # pre_active = th.ones((self.actor_batch_size,), device=self.device, dtype=th.bool)
         discount_factor = th.ones((self.env.num_envs,), dtype=th.float32, device=self.device)
         episode_done = th.zeros((self.env.num_envs,), device=self.device, dtype=th.bool)
@@ -218,10 +218,11 @@ class BPTT(OffPolicyAlgorithm):
                 next_values, _ = th.cat(self.policy.critic_target(obs.detach(), next_actions.detach()), dim=-1).min(dim=-1)
 
             # compute the loss
-            actor_loss = actor_loss - reward * discount_factor - entropy * discount_factor * self.ent_coef
+            reward_loss = reward_loss - reward * discount_factor
+            entropy_loss = entropy_loss - entropy * discount_factor * self.ent_coef
             done_but_not_episode_end = (done | (inner_step == self.H - 1)) & ~episode_done
             if done_but_not_episode_end.any() and self._end_value:
-                actor_loss = actor_loss - \
+                reward_loss = reward_loss - \
                              next_values * discount_factor * self.gamma * done_but_not_episode_end
 
             discount_factor = discount_factor * self.gamma * ~done + done
@@ -246,7 +247,7 @@ class BPTT(OffPolicyAlgorithm):
             self.check_whether_dump(log_interval=log_interval, dones=cdu(done))
 
         # update
-        actor_loss = actor_loss.mean()  # average of value and accumlative rewards
+        actor_loss = (reward_loss+entropy_loss).mean()  # average of value and accumlative rewards
         self.policy.actor.optimizer.zero_grad()
         actor_loss.backward(retain_graph=False)
         th.nn.utils.clip_grad_norm_(self.policy.actor.parameters(), 0.5)
@@ -272,7 +273,9 @@ class BPTT(OffPolicyAlgorithm):
 
         self.rollout_buffer.clear()
 
-        self._logger.record("train/actor_loss", actor_loss.item())
+        self._logger.record("train/reward_loss", reward_loss.mean().item())
+        self._logger.record("train/entropy_loss", entropy_loss.mean().item())
+        self._logger.record("train/actor_loss", actor_loss.mean().item())
         self._logger.record("train/critic_loss", critic_loss.item() if isinstance(critic_loss, th.Tensor) else critic_loss)
         self.logger.record("train/ent_coef_loss", (ent_coef_loss.item() if isinstance(ent_coef_loss, th.Tensor) else ent_coef_loss))
 

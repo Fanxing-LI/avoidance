@@ -6,29 +6,29 @@ algorithm:
       net_arch:
         state:
           layer: [512,]
-#          ln: True
+          # ln: True
 #          bn: True
-#        depth:
-#          channel: [ 4, 16,64]
-#          kernel_size: 2
-#          stride: 2
-#          padding: 1
-#          layer: [512]
-#          max_pool: 2
-#          ln: True
+        # depth:
+        #   channel: [ 4, 16,64]
+        #   kernel_size: 2
+        #   stride: 2
+        #   padding: 1
+        #   layer: [512]
+ #          max_pool: 2
+#           ln: True
 #          bias: False
     critic:
       dist: mse
       n_critics: 2
       net_arch:
         layer: [512, 512]
-#        ln: True
+        # ln: True
 #        bn: True
     actor:
-      dist: normal
+      dist: tanh_normal
       net_arch:
         layer: [512, 512]
-#        ln: True
+        # ln: True
 
 #        bn: True
 
@@ -41,8 +41,8 @@ algorithm:
   learning_rate:
     class: cosine
     kwargs:
-      initial: 0.005
-      final: 0.001
+      initial: 0.001
+      final: 0.002
       period: 0.1
 
   horizon: 128
@@ -54,7 +54,7 @@ algorithm:
   batch_size: 25600
   actor_gradient_steps: 1
   buffer_size: 100
-  # ent_coef: 0.00003
+  ent_coef: 0.0003
   scene_freq: 3000000
 
 learn:

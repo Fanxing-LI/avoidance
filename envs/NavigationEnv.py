@@ -98,9 +98,12 @@ class NavigationEnv(DroneGymEnvsBase):
             for i in indices:
                 # pos, _, _, _ = self.target_randomizers[i].safe_generate(1)
                 # now consider pos generation as vel
-                pos, _, _, _ = self.target_randomizers[i].safe_generate(1, position=th.zeros_like(self.position[i]))
+                # pos, _, _, _ = self.target_randomizers[i].safe_generate(1, position=th.zeros_like(self.position[i]))
                 # vel
-                self.target[i] = pos[0]
+                # self.target[i] = pos[0]
+                vel = th.tensor([[15,0,2]])-dl(self.position[i:i+1])
+                vel_unit = vel / (vel.norm(dim=1, keepdim=True)+1e-6)
+                self.target[i] = vel_unit * th.rand(1) * 6.0
 
     def get_observation(
             self,
@@ -157,13 +160,13 @@ class NavigationEnv(DroneGymEnvsBase):
 
         # scale = (self.position - self.target).norm(dim=1).detach().clamp_min(0.3)
         # pos_r = pos_r / scale
-        vel_r = (self.velocity - self.target).norm(dim=1) * -0.006
+        vel_r = (self.velocity - self.target).norm(dim=1) * -0.02
         ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.005
 
-        acc_r = (self.envs.acceleration-0).norm(dim=1) * -0.001
+        acc_r = (self.envs.acceleration-0).norm(dim=1) * -0.005
 
         # act_r = self._action.norm(dim=1).cpu() * -0.001
-        act_change_r = (self.envs.dynamics._pre_action[-1].to(self.device).T -
+        act_change_r = (self.envs.dynamics._pre_action[-2].to(self.device).T -
                         self._action.to(self.device)
                         ).norm(dim=-1) * -0.003
 
