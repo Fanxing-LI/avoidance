@@ -24,7 +24,26 @@ def get_along_vertical_vector(base, obj):
     vertical_obj_norm = vertical_vector.norm(dim=1)
     return along_obj_norm.squeeze(), vertical_obj_norm, base_norm.squeeze()
 
-
+def smooth_l1_loss_per_row(pred, target, beta: float = 1.0, reduction: str = "mean"):
+    """
+    pred, target: tensors of shape (m, n)
+    beta: transition point for Smooth L1
+    reduction: "mean" (default) or "sum" over dim=1, or "none" to return (m,n)
+    returns: tensor of shape (m,) when reduction is "mean" or "sum"
+    """
+    # import torch as th
+    diff = pred - target
+    abs_diff = diff.abs()
+    if beta <= 0:
+        loss = abs_diff
+    else:
+        mask = abs_diff < beta
+        loss = th.where(mask, 0.5 * diff * diff / beta, abs_diff - 0.5 * beta)
+    # if reduction == "mean":
+    #     return loss.mean(dim=1)
+    # if reduction == "sum":
+    #     return loss.sum(dim=1)
+    return loss
 class NavigationEnv(DroneGymEnvsBase):
     def __init__(
             self,
@@ -160,22 +179,24 @@ class NavigationEnv(DroneGymEnvsBase):
 
         # scale = (self.position - self.target).norm(dim=1).detach().clamp_min(0.3)
         # pos_r = pos_r / scale
-        vel_r = (self.velocity - self.target).norm(dim=1) * -0.02
+         
+        vel_r = (self.velocity - self.target).norm(dim=1)
+        vel_r = smooth_l1_loss_per_row(vel_r, th.zeros_like(vel_r)) * -0.05
         ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.005
 
-        acc_r = (self.envs.acceleration-0).norm(dim=1) * -0.005
+        acc_r = (self.envs.acceleration-0).norm(dim=1) * -0.0005
 
         # act_r = self._action.norm(dim=1).cpu() * -0.001
         act_change_r = (self.envs.dynamics._pre_action[-2].to(self.device).T -
                         self._action.to(self.device)
-                        ).norm(dim=-1) * -0.003
+                        ).norm(dim=-1) * -0.00005
 
         #  heading alignment
         unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
         align = (unit_velocity * self.direction).sum(dim=1)
-        align_r = align * self.velocity.norm(dim=1) * 0.002
+        align_r = align * self.velocity.norm(dim=1) * 0.005
 
-        share_factor_collision = 0.000
+        share_factor_collision = 0.3
         # collision penalty
         thre_vel = 1.0
         collision_dis = self.collision_vector.norm(dim=1).clamp_min(0.)
@@ -186,11 +207,11 @@ class NavigationEnv(DroneGymEnvsBase):
         col_vel_r = col_approach_velocity * (thre_vel-collision_dis.detach()).clamp(min=0, ).pow(2) * -1 * share_factor_collision
 
         # position
-        k = 0.005
-        func = lambda x: 2 * k / (x+k)
+        k = 0.002
+        func = lambda x: 3 * k / (x+k)
         func3 = lambda x: 2.5 * th.log(1+th.exp(-32*x))
         func2 = lambda x: -x
-        col_dis_r = func(collision_dis) * -1 * share_factor_collision
+        col_dis_r = func3(collision_dis) * -1 * share_factor_collision
 
         reward = {
             "reward": base_r + vel_r + ang_r + align_r
