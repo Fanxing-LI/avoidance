@@ -179,9 +179,9 @@ class NavigationEnv(DroneGymEnvsBase):
 
         # scale = (self.position - self.target).norm(dim=1).detach().clamp_min(0.3)
         # pos_r = pos_r / scale
-         
+
         vel_r = (self.velocity - self.target).norm(dim=1)
-        vel_r = smooth_l1_loss_per_row(vel_r, th.zeros_like(vel_r)) * -0.05
+        vel_r = smooth_l1_loss_per_row(vel_r, th.zeros_like(vel_r)) * -0.04
         ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.005
 
         acc_r = (self.envs.acceleration-0).norm(dim=1) * -0.0005
@@ -194,24 +194,26 @@ class NavigationEnv(DroneGymEnvsBase):
         #  heading alignment
         unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
         align = (unit_velocity * self.direction).sum(dim=1)
-        align_r = align * self.velocity.norm(dim=1) * 0.005
+        align_r = align * self.velocity.norm(dim=1) * 0.004
 
-        share_factor_collision = 0.3
+        share_factor_collision = 0.2
         # collision penalty
-        thre_vel = 3.0
         collision_dis = self.collision_vector.norm(dim=1).clamp_min(0.)
         collision_dir = self.collision_vector / (collision_dis.unsqueeze(1)+1e-6)
         # approaching_point = self.envs.approaching_point
         # velocity
+        thre_vel = 3.0
+        weight = ((thre_vel-collision_dis.detach()).clamp(min=0, )/thre_vel).pow(1)
+        weight = 1 / (1 + ((thre_vel-collision_dis) * 0.3).clamp(min=0,))
         col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
-        col_vel_r = col_approach_velocity * ((thre_vel-collision_dis.detach()).clamp(min=0, )/thre_vel).pow(2) * -1 * share_factor_collision
+        col_vel_r = col_approach_velocity * weight * -1 * share_factor_collision
 
         # position
         k = 0.01
         func = lambda x: 2 * k / (x+k)
         func3 = lambda x: 2.5 * th.log(1+th.exp(-32*x))
         func2 = lambda x: -x
-        col_dis_r = func(collision_dis) * -1 * share_factor_collision
+        col_dis_r = func(collision_dis) * -2 * share_factor_collision
 
         reward = {
             "reward": base_r + vel_r + ang_r + align_r

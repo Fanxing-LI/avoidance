@@ -3,7 +3,7 @@ import torch as th
 import matplotlib.pyplot as plt
 from VisFly.utils.evaluate import TestBase
 import numpy as np
-
+import cv2
 
 class Test(TestBase):
     def __init__(self,
@@ -15,6 +15,21 @@ class Test(TestBase):
         self.target_all = []
         self.target_dis_all = []
         self.center_all = []
+
+    def test(self, *args, **kwargs):
+        super().test(*args, **kwargs)
+        self._img_names.append("depth_merge")
+        for obs in self.obs_all:
+            depth0 = obs["depth"].permute(0, 2, 3, 1).cpu().numpy()
+            merge = th.zeros(depth0.shape[0], 1, 48, 64)
+            depth1 = obs["depth2"]
+            # shape = depth1.shape
+            # enlarge depth0 to depth1 size using torchvision
+            for i, d in enumerate(depth0):
+                merge[i, 0] = th.from_numpy(cv2.resize(d, (64,48), interpolation=cv2.INTER_NEAREST))*10
+            # resized_img = cv2.resize(depth0, (48,64), interpolation=cv2.INTER_NEAREST)
+            obs["depth_merge"] = np.concatenate([merge, depth1], axis=2)
+        self.save_video()
 
     def draw(self, names=None):
         state_data = th.stack(self.state_all).cpu()
