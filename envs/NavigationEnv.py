@@ -60,7 +60,7 @@ class NavigationEnv(DroneGymEnvsBase):
             target: Optional[th.Tensor] = None,
             max_episode_steps: int = 256,
             tensor_output: bool = True,
-            max_target_dis: float = 7.0,
+            max_rand_velocity: float = 7.0,
             target_random: bool = True,
             *args,
             **kwargs
@@ -91,7 +91,7 @@ class NavigationEnv(DroneGymEnvsBase):
                 self.target = th.as_tensor(target)
         else:
             self.target = th.ones((self.num_envs, 1)) @ th.as_tensor([[15, 0., 1]])
-        self.max_target_dis = max_target_dis
+        self.max_rand_velocity = max_rand_velocity
         self.success_radius = 0.5
 
         self.target_randomizers = [
@@ -122,7 +122,7 @@ class NavigationEnv(DroneGymEnvsBase):
                 # self.target[i] = pos[0]
                 vel = th.tensor([[15,0,2]])-dl(self.position[i:i+1])
                 vel_unit = vel / (vel.norm(dim=1, keepdim=True)+1e-6)
-                self.target[i] = vel_unit * th.rand(1) * 6.0
+                self.target[i] = vel_unit * th.rand(1) * self.max_rand_velocity
 
     def get_observation(
             self,

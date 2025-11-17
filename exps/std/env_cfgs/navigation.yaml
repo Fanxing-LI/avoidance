@@ -95,7 +95,7 @@ env:
   device: cpu
   requires_grad: True
   tensor_output: True
-  max_target_dis: 10.0
+  max_rand_velocity: 10.0
   is_collision_reset: False
 #  target: [[15,0,1]]
 
@@ -148,7 +148,6 @@ eval_env:
       collision: True
       approaching: True
       axes: True
-  max_target_dis: 9.
 #  target: [[3,1,0],[3,-1.,0],[3,2,0],[3,0,0],[3,-2,0]]
   target: [[3,0,0]]
 #  target: [[5,0,0]]
