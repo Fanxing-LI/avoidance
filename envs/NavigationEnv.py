@@ -120,7 +120,7 @@ class NavigationEnv(DroneGymEnvsBase):
                 # pos, _, _, _ = self.target_randomizers[i].safe_generate(1, position=th.zeros_like(self.position[i]))
                 # vel
                 # self.target[i] = pos[0]
-                vel = th.tensor([[15,0,2]])-dl(self.position[i:i+1])
+                vel = th.tensor([[30,0,2]])-dl(self.position[i:i+1])
                 vel_unit = vel / (vel.norm(dim=1, keepdim=True)+1e-6)
                 self.target[i] = vel_unit * th.rand(1) * self.max_rand_velocity
 
@@ -185,11 +185,14 @@ class NavigationEnv(DroneGymEnvsBase):
         ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.005
 
         acc_r = (self.envs.acceleration-0).norm(dim=1) * -0.0005
-
+        if not hasattr(self, "_pre_acc"):
+            self._pre_acc = self.envs.acceleration.clone()
+        acc_change_r = (self.envs.acceleration - self._pre_acc).norm(dim=1) * -0.0001
         # act_r = self._action.norm(dim=1).cpu() * -0.001
         act_change_r = (self.envs.dynamics._pre_action[-2].to(self.device).T -
                         self._action.to(self.device)
-                        ).norm(dim=-1) * -0.00005
+                        ).norm(dim=-1) * -0.000
+
 
         #  heading alignment
         unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
@@ -217,7 +220,7 @@ class NavigationEnv(DroneGymEnvsBase):
 
         reward = {
             "reward": base_r + vel_r + ang_r + align_r
-                    + act_change_r + acc_r
+                    + act_change_r + acc_r + acc_change_r
                     + col_vel_r + col_dis_r
             ,
             # "pos_r": dl(pos_r),
@@ -227,6 +230,7 @@ class NavigationEnv(DroneGymEnvsBase):
             "align_r": dl(align_r),
             "col_vel_r": dl(col_vel_r),
             "col_dis_r": dl(col_dis_r),
+            "acc_change_r": dl(acc_change_r),
             # "act_r": dl(act_r),
             "act_change_r": dl(act_change_r),
         }
