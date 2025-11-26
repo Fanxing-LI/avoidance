@@ -5,7 +5,7 @@ algorithm:
     features_extractor_kwargs:
       net_arch:
         state:
-          layer: [512,]
+          layer: [512]
           # ln: True
 #          bn: True
         depth:
@@ -33,16 +33,16 @@ algorithm:
 #        bn: True
 
     activation_fn: leaky_relu
-    optimizer_class: adam
+    optimizer_class: adamW
     optimizer_kwargs:
-      weight_decay: 0.00001
+      weight_decay: 0.0001
     share_features_extractor: False
 
   learning_rate:
     class: cosine
     kwargs:
-      initial: 0.001
-      final: 0.0002
+      initial: 0.002
+      final: 0.0005
       period: 0.1
 
   horizon: 384
@@ -53,9 +53,10 @@ algorithm:
   train_freq: 48
   batch_size: 25600
   actor_gradient_steps: 1
-  buffer_size: 100
-  ent_coef: 0.001
+  ent_coef: 0.000
   scene_freq: 3000000
+#  buffer_reset: True
+#  buffer_size: 40000
 
 learn:
   total_timesteps: 20000000

@@ -5,8 +5,8 @@ sys.path.append(os.getcwd())
 from envs.HoverEnv import HoverEnv
 from envs.ObjectTrackingEnv import ObjectTrackingEnv
 from envs.NavigationEnv import NavigationEnv
-from algorithms.SHAC import SHAC
-from algorithms.BPTT import BPTT
+from algorithms.BPTT_series.SHAC import SHAC
+from algorithms.BPTT_series.BPTT import BPTT
 from VisFly.utils.algorithms.PPO import PPO
 from VisFly.utils.algorithms.SAC import SAC
 import torch as th

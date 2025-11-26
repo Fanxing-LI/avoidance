@@ -62,6 +62,7 @@ class NavigationEnv(DroneGymEnvsBase):
             tensor_output: bool = True,
             max_rand_velocity: float = 7.0,
             target_random: bool = True,
+            pos_target: Optional[th.Tensor] = None,
             *args,
             **kwargs
     ):
@@ -109,6 +110,9 @@ class NavigationEnv(DroneGymEnvsBase):
             ) for i in range(self.num_envs)
         ]
 
+        if pos_target is not None:
+            self.pos_target = th.tensor(pos_target)
+
     def _reset_attr(self, indices=None):
         super()._reset_attr(indices)
 
@@ -121,8 +125,13 @@ class NavigationEnv(DroneGymEnvsBase):
                 # vel
                 # self.target[i] = pos[0]
                 vel = th.tensor([[30,0,2]])-dl(self.position[i:i+1])
+                # vel[:,2] = 0
                 vel_unit = vel / (vel.norm(dim=1, keepdim=True)+1e-6)
                 self.target[i] = vel_unit * th.rand(1) * self.max_rand_velocity
+
+    # def detach(self):
+    #     super().detach()
+    #     self._pre_acc = self._pre_acc.detach()
 
     def get_observation(
             self,
@@ -137,6 +146,13 @@ class NavigationEnv(DroneGymEnvsBase):
         #     new_target = (unit_rela * distance+self.position).detach()
         # else:
         #     new_target = self.target
+        if hasattr(self, "pos_target"):
+            self.target = (self.pos_target - self.position)
+            self.target = (((self.pos_target - self.position)
+                           / self.target.norm(dim=1, keepdim=True))
+                           * self.target.norm(dim=1, keepdim=True).clamp_max(5.0))
+            scale = ((1 + self.velocity.norm(dim=1) / (self.target.norm(dim=1)+1e-6)) / 2).clamp_min(1.)
+            self.target = self.target * scale.unsqueeze(1)
 
         orientation = self.envs.dynamics._orientation.clone()
         # rela = new_target - self.position
@@ -167,8 +183,8 @@ class NavigationEnv(DroneGymEnvsBase):
         # return th.zeros((self.num_envs,), dtype=th.bool, device=self.device)
         # return ((self.position - self.target).norm(dim=1) <= self.success_radius) & \
         #         (self.velocity.norm(dim=1) <= 0.05)
-        reach_bound = (self.position[:,0]<=0.6) | (self.position[:,0]>=59.4) | \
-                        (self.position[:,1]>=29.4) | (self.position[:,1]<=-29.4)
+        reach_bound = (self.position[:,0]<1) | (self.position[:,0]>=59.) | \
+                        (self.position[:,1]>29.) | (self.position[:,1]<=-29.)
         return reach_bound
 
     def get_reward(self) -> th.Tensor:
@@ -182,37 +198,37 @@ class NavigationEnv(DroneGymEnvsBase):
 
         vel_r = (self.velocity - self.target).norm(dim=1)
         vel_r = smooth_l1_loss_per_row(vel_r, th.zeros_like(vel_r)) * -0.04
-        ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.005
+        ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.02
 
-        acc_r = (self.envs.acceleration-0).norm(dim=1) * -0.0005
-        if not hasattr(self, "_pre_acc"):
-            self._pre_acc = self.envs.acceleration.clone()
-        acc_change_r = (self.envs.acceleration - self._pre_acc).norm(dim=1) * -0.0001
+        acc_r = (self.envs.acceleration-0).norm(dim=1).pow(1)  # * -0.005
+        acc_r = smooth_l1_loss_per_row(acc_r, th.zeros_like(acc_r)) * -0.003
+        # if not hasattr(self, "_pre_acc"):
+        #     self._pre_acc = self.envs.acceleration.clone()
+        # acc_change_r = (self.envs.acceleration - self._pre_acc).norm(dim=1) * -0.0000
         # act_r = self._action.norm(dim=1).cpu() * -0.001
         act_change_r = (self.envs.dynamics._pre_action[-2].to(self.device).T -
                         self._action.to(self.device)
-                        ).norm(dim=-1) * -0.000
-
+                        ).norm(dim=-1) * -0.004
 
         #  heading alignment
         unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
         align = (unit_velocity * self.direction).sum(dim=1)
-        align_r = align * self.velocity.norm(dim=1) * 0.004
+        align_r = align * self.velocity.norm(dim=1) * 0.005
 
-        share_factor_collision = 0.2
+        share_factor_collision = 0.30
         # collision penalty
         collision_dis = self.collision_vector.norm(dim=1).clamp_min(0.)
         collision_dir = self.collision_vector / (collision_dis.unsqueeze(1)+1e-6)
         # approaching_point = self.envs.approaching_point
         # velocity
-        thre_vel = 3.0
+        thre_vel = 1.5
         weight = ((thre_vel-collision_dis.detach()).clamp(min=0, )/thre_vel).pow(1)
-        weight = 1 / (1 + ((thre_vel-collision_dis) * 0.3).clamp(min=0,))
+        # weight = 1 / (1 + ((thre_vel-collision_dis) * 0.3).clamp(min=0,))
         col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
-        col_vel_r = col_approach_velocity * weight * -1 * share_factor_collision
+        col_vel_r = col_approach_velocity * weight * -1 * share_factor_collision * 0.5
 
         # position
-        k = 0.01
+        k = 0.02
         func = lambda x: 2 * k / (x+k)
         func3 = lambda x: 2.5 * th.log(1+th.exp(-32*x))
         func2 = lambda x: -x
@@ -220,7 +236,7 @@ class NavigationEnv(DroneGymEnvsBase):
 
         reward = {
             "reward": base_r + vel_r + ang_r + align_r
-                    + act_change_r + acc_r + acc_change_r
+                    + act_change_r + acc_r #+ acc_change_r
                     + col_vel_r + col_dis_r
             ,
             # "pos_r": dl(pos_r),
@@ -230,7 +246,7 @@ class NavigationEnv(DroneGymEnvsBase):
             "align_r": dl(align_r),
             "col_vel_r": dl(col_vel_r),
             "col_dis_r": dl(col_dis_r),
-            "acc_change_r": dl(acc_change_r),
+            # "acc_change_r": dl(acc_change_r),
             # "act_r": dl(act_r),
             "act_change_r": dl(act_change_r),
         }
