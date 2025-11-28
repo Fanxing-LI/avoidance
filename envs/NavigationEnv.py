@@ -145,7 +145,7 @@ class NavigationEnv(DroneGymEnvsBase):
             self.target = (self.pos_target - self.position)
             self.target = (((self.pos_target - self.position)
                            / self.target.norm(dim=1, keepdim=True))
-                           * self.target.norm(dim=1, keepdim=True).clamp_max(5.0))
+                           * self.target.norm(dim=1, keepdim=True).clamp_max(self.max_rand_velocity))
             scale = ((1 + self.velocity.norm(dim=1) / (self.target.norm(dim=1)+1e-6)) / 2).clamp_min(1.)
             self.target = self.target * scale.unsqueeze(1)
 
