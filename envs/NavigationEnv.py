@@ -229,7 +229,7 @@ class NavigationEnv(DroneGymEnvsBase):
         approach_vector_proj = col_approach_velocity / self.velocity.norm(dim=1).clamp_min(1e-6)
 
         # position
-        k = 0.02
+        k = 0.015
         func = lambda x: 12 * k / (x+k)
         func3 = lambda x: 2.5 * th.log(1+th.exp(-32*x))
         func2 = lambda x: -x
