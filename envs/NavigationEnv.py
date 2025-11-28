@@ -1,13 +1,8 @@
-import os
-
 import numpy as np
-from habitat_sim.sensor import SensorType
-
+import torch.nn.functional as F
 from VisFly.envs.base.droneGymEnv import DroneGymEnvsBase
 from typing import Optional, Dict
 import torch as th
-from habitat_sim import SensorType
-from gymnasium import spaces
 from VisFly.utils.randomization import TargetUniformRandomizer, UniformStateRandomizer
 from VisFly.utils.type import TensorDict
 
@@ -129,9 +124,9 @@ class NavigationEnv(DroneGymEnvsBase):
                 vel_unit = vel / (vel.norm(dim=1, keepdim=True)+1e-6)
                 self.target[i] = vel_unit * th.rand(1) * self.max_rand_velocity
 
-    # def detach(self):
-    #     super().detach()
-    #     self._pre_acc = self._pre_acc.detach()
+    def detach(self):
+        super().detach()
+        self._pre_acc = self._pre_acc.detach()
 
     def get_observation(
             self,
@@ -177,6 +172,8 @@ class NavigationEnv(DroneGymEnvsBase):
 
         if "depth2" in list(self.observation_space.keys()):
             obs["depth2"] = th.tensor(self.sensor_obs["depth2"])
+            f = lambda x: F.max_pool2d(x, kernel_size=2, stride=2)
+            obs["depth"] = f(f(1/(1+obs["depth2"]/4)))
         return obs
 
     def get_success(self) -> th.Tensor:
@@ -202,9 +199,9 @@ class NavigationEnv(DroneGymEnvsBase):
 
         acc_r = (self.envs.acceleration-0).norm(dim=1).pow(1)  # * -0.005
         acc_r = smooth_l1_loss_per_row(acc_r, th.zeros_like(acc_r)) * -0.003
-        # if not hasattr(self, "_pre_acc"):
-        #     self._pre_acc = self.envs.acceleration.clone()
-        # acc_change_r = (self.envs.acceleration - self._pre_acc).norm(dim=1) * -0.0000
+        if not hasattr(self, "_pre_acc"):
+            self._pre_acc = self.envs.acceleration.clone()
+        acc_change_r = (self.envs.acceleration - self._pre_acc).norm(dim=1).pow(2) * -0.005
         # act_r = self._action.norm(dim=1).cpu() * -0.001
         act_change_r = (self.envs.dynamics._pre_action[-2].to(self.device).T -
                         self._action.to(self.device)
@@ -215,7 +212,7 @@ class NavigationEnv(DroneGymEnvsBase):
         align = (unit_velocity * self.direction).sum(dim=1)
         align_r = align * self.velocity.norm(dim=1) * 0.005
 
-        share_factor_collision = 0.30
+        share_factor_collision = 0.50
         # collision penalty
         collision_dis = self.collision_vector.norm(dim=1).clamp_min(0.)
         collision_dir = self.collision_vector / (collision_dis.unsqueeze(1)+1e-6)
@@ -227,16 +224,21 @@ class NavigationEnv(DroneGymEnvsBase):
         col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
         col_vel_r = col_approach_velocity * weight * -1 * share_factor_collision * 0.5
 
+        thre_vel = 0.5
+        weight = ((thre_vel - collision_dis.detach()).clamp(min=0, ) / thre_vel).pow(1)
+        approach_vector_proj = col_approach_velocity / self.velocity.norm(dim=1).clamp_min(1e-6)
+
         # position
         k = 0.02
-        func = lambda x: 2 * k / (x+k)
+        func = lambda x: 12 * k / (x+k)
         func3 = lambda x: 2.5 * th.log(1+th.exp(-32*x))
         func2 = lambda x: -x
         col_dis_r = func(collision_dis) * -2 * share_factor_collision
 
         reward = {
             "reward": base_r + vel_r + ang_r + align_r
-                    + act_change_r + acc_r #+ acc_change_r
+                    + act_change_r + acc_r
+                    + acc_change_r
                     + col_vel_r + col_dis_r
             ,
             # "pos_r": dl(pos_r),
@@ -246,7 +248,7 @@ class NavigationEnv(DroneGymEnvsBase):
             "align_r": dl(align_r),
             "col_vel_r": dl(col_vel_r),
             "col_dis_r": dl(col_dis_r),
-            # "acc_change_r": dl(acc_change_r),
+            "acc_change_r": dl(acc_change_r),
             # "act_r": dl(act_r),
             "act_change_r": dl(act_change_r),
         }

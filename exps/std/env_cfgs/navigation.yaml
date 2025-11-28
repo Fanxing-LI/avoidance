@@ -114,7 +114,7 @@ eval_env:
       position: [ 0,0,-0.1 ]
     - sensor_type: depth
       uuid: depth2
-      resolution: [ 64,64 ]
+      resolution: [ 48,64 ]
       position: [ 0,0,-0.1 ]
   random_kwargs:
     state_generator:
@@ -137,6 +137,7 @@ eval_env:
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_empty
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_test
     path: VisFly/datasets/visfly-beta/configs/scenes/box30_0.04tree
+    shuffle: False
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_0.02tree
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_tree
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_high_test

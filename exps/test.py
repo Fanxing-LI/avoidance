@@ -59,6 +59,9 @@ class Test(TestBase):
             plt.subplot(3, 3, 7)
             plt.plot(t, state_data[:,i,13:16], label=["x","y","z"])
             plt.title("acceleration")
+            plt.subplot(3, 3, 8)
+            plt.plot(t[:-1], (state_data[1:,i,13:16]-state_data[:-1,i,13:16])/(t[2]-t[1]), label=["ax","ay","az"])
+            plt.title("jerk")
             plt.tight_layout()
             plt.show()
 
