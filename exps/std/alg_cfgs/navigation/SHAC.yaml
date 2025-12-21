@@ -59,7 +59,7 @@ algorithm:
 #  buffer_size: 40000
 
 learn:
-  total_timesteps: 20000000
+  total_timesteps: 30000000
   # log_interval: 20
 
 test:

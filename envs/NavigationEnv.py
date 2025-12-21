@@ -142,12 +142,13 @@ class NavigationEnv(DroneGymEnvsBase):
         # else:
         #     new_target = self.target
         if hasattr(self, "pos_target"):
-            self.target = (self.pos_target - self.position)
-            self.target = (((self.pos_target - self.position)
+            pos_target = self.pos_target.repeat(self.num_scene, 1)
+            self.target = (pos_target - self.position)
+            self.target = (((pos_target - self.position)
                            / self.target.norm(dim=1, keepdim=True))
                            * self.target.norm(dim=1, keepdim=True).clamp_max(self.max_rand_velocity))
-            scale = ((1 + self.velocity.norm(dim=1) / (self.target.norm(dim=1)+1e-6)) / 2).clamp_min(1.)
-            self.target = self.target * scale.unsqueeze(1)
+            # scale = ((1 + self.velocity.norm(dim=1) / (self.target.norm(dim=1)+1e-6)) / 2).clamp_min(1.)
+            # self.target = self.target * scale.unsqueeze(1)
 
         orientation = self.envs.dynamics._orientation.clone()
         # rela = new_target - self.position
@@ -165,15 +166,22 @@ class NavigationEnv(DroneGymEnvsBase):
             self.angular_velocity / 10,
         ]).to(self.device)
 
+        max_dis = 20.
+        min_dis = 0.2
+        scale = 4.
+
         obs = TensorDict({
             "state": state,
-            "depth": 1/(1+th.tensor(self.sensor_obs["depth"]/4))
+            # "depth": 1/(1+th.tensor(self.sensor_obs["depth"]).clamp_max(20.)/4)
+            "depth": 1 / (1 + th.tensor(self.sensor_obs["depth"]).clamp(min_dis, max_dis) /scale)
         })
 
         if "depth2" in list(self.observation_space.keys()):
-            obs["depth2"] = th.tensor(self.sensor_obs["depth2"])
+            obs["depth2"] = th.tensor(self.sensor_obs["depth2"]).clamp(min_dis, max_dis)
             f = lambda x: F.max_pool2d(x, kernel_size=2, stride=2)
-            obs["depth"] = f(f(1/(1+obs["depth2"]/4)))
+            f2 = lambda x: F.avg_pool2d(x, kernel_size=4, stride=4)
+            # obs["depth"] = f(f(1/(1+obs["depth2"]/scale)))
+            obs["depth"] = 1/(1+f2(obs["depth2"])/4)
         return obs
 
     def get_success(self) -> th.Tensor:
@@ -194,7 +202,7 @@ class NavigationEnv(DroneGymEnvsBase):
         # pos_r = pos_r / scale
 
         vel_r = (self.velocity - self.target).norm(dim=1)
-        vel_r = smooth_l1_loss_per_row(vel_r, th.zeros_like(vel_r)) * -0.04
+        vel_r = smooth_l1_loss_per_row(vel_r, th.zeros_like(vel_r)) * -0.03
         ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.02
 
         acc_r = (self.envs.acceleration-0).norm(dim=1).pow(1)  # * -0.005
@@ -202,6 +210,7 @@ class NavigationEnv(DroneGymEnvsBase):
         if not hasattr(self, "_pre_acc"):
             self._pre_acc = self.envs.acceleration.clone()
         acc_change_r = (self.envs.acceleration - self._pre_acc).norm(dim=1).pow(2) * -0.005
+        self._pre_acc = self.envs.acceleration.clone()
         # act_r = self._action.norm(dim=1).cpu() * -0.001
         act_change_r = (self.envs.dynamics._pre_action[-2].to(self.device).T -
                         self._action.to(self.device)
@@ -212,7 +221,7 @@ class NavigationEnv(DroneGymEnvsBase):
         align = (unit_velocity * self.direction).sum(dim=1)
         align_r = align * self.velocity.norm(dim=1) * 0.005
 
-        share_factor_collision = 0.50
+        share_factor_collision = 0.6
         # collision penalty
         collision_dis = self.collision_vector.norm(dim=1).clamp_min(0.)
         collision_dir = self.collision_vector / (collision_dis.unsqueeze(1)+1e-6)
@@ -224,12 +233,8 @@ class NavigationEnv(DroneGymEnvsBase):
         col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
         col_vel_r = col_approach_velocity * weight * -1 * share_factor_collision * 0.5
 
-        thre_vel = 0.5
-        weight = ((thre_vel - collision_dis.detach()).clamp(min=0, ) / thre_vel).pow(1)
-        approach_vector_proj = col_approach_velocity / self.velocity.norm(dim=1).clamp_min(1e-6)
-
         # position
-        k = 0.015
+        k = 0.014
         func = lambda x: 12 * k / (x+k)
         func3 = lambda x: 2.5 * th.log(1+th.exp(-32*x))
         func2 = lambda x: -x

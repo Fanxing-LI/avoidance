@@ -38,6 +38,7 @@ class Test(TestBase):
         t = np.stack(self.t)[:, 0]
         for i in range(self.model.env.num_envs):
             fig = plt.figure(figsize=(7, 4))
+            fig.suptitle(self.name+f"_agent_{i}")
             plt.subplot(3, 3, 1)
             plt.plot(t, state_data[:, i, 0:3], label=["x", "y", "z"])
             plt.legend()
@@ -47,6 +48,8 @@ class Test(TestBase):
             plt.legend()
             plt.subplot(3, 3, 3)
             plt.plot(t, state_data[:, i, 7:10], label=["vx", "vy", "vz"])
+            v_norm = np.linalg.norm(state_data[:, i, 7:10], axis=1)
+            plt.plot(t, v_norm, label="v_norm")
             plt.legend()
             plt.subplot(3, 3, 4)
             plt.plot(t, state_data[:, i, 10:13], label=["wx", "wy", "wz"])
@@ -64,6 +67,10 @@ class Test(TestBase):
             plt.title("jerk")
             plt.tight_layout()
             plt.show()
+
+            success = np.array([info["episode"]["extra"]["collision"] for info in self.info_all[-1]]).astype(int)
+            success_rate = 1-success.sum().item() / success.shape[0]
+            print(f"Env {i} success rate: {success_rate*100:.2f}%")
 
             # plt.legend()
         # fig2, axes = FigFon.get_figure_axes(SubFigSize=(1, 1))

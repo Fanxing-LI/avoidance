@@ -53,7 +53,7 @@ algorithm:
   train_freq: 48
   batch_size: 25600
   actor_gradient_steps: 1
-  ent_coef: 0.000
+  ent_coef: 0.00000
   scene_freq: 3000000
 #  buffer_reset: True
 #  buffer_size: 40000

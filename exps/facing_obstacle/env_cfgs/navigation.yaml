@@ -97,15 +97,15 @@ env:
   device: cpu
   requires_grad: True
   tensor_output: True
-  max_rand_velocity: 13.0
+  max_rand_velocity: 12.0
   is_collision_reset: False
 #  target: [[15,0,1]]
 
 eval_env:
   num_scene: 1
-  num_agent_per_scene: 5
+  num_agent_per_scene: 1
   visual: True
-  max_episode_steps: 512
+  max_episode_steps: 256
   tensor_output: True
   sensor_kwargs:
     - sensor_type: depth
@@ -114,7 +114,7 @@ eval_env:
       position: [ 0,0,-0.1 ]
     - sensor_type: depth
       uuid: depth2
-      resolution: [ 48,64 ]
+      resolution: [ 180,180 ]
       position: [ 0,0,-0.1 ]
   random_kwargs:
     state_generator:
@@ -122,22 +122,20 @@ eval_env:
       kwargs:
         - position:
 #            mean: [ 2.0, 0.0, 5 ]
-            half: [ 0.1, 20., 0.1 ]
+            half: [ 0.1, 0., 0.1 ]
             mean: [ 1.2, 0.0, 2 ]
 #            half: [ 0., 5., 0.2 ]
 #            half: [ 0., 25., 0.2 ]
           orientation:
             mean: [0., 0., 0.]
-            half: [0., 0., 1.0]
+            half: [0., 0., 0.]
 #          heading: True
           test: True
-          xyz_num: [1,5,1]
+          xyz_num: [1,1,1]
 
   scene_kwargs:
-#    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_empty
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_test
-#    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_0.04tree
-    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_0.08tree
+    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_one_tree
 #    obj_settings:
 #      path: box60/slow_low
     shuffle: False
@@ -145,15 +143,13 @@ eval_env:
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_tree
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_high_test
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_empty
-#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_median
-#    path: VisFly/datasets/visfly-beta/configs/scenes/box15_wall_simple_pillars
     render_settings:
       mode: fix
 #      view: custom
 #      position: [[-2., 3, 5.5], [-2, 0, 4.5]]
       resolution: [1080,1080]
       view: top
-      position: [[30, 0, 35.5]]
+      position: [[15, 0, 15.5]]
       trajectory: True
       FOV: False
       collision: True
@@ -161,8 +157,9 @@ eval_env:
       axes: True
 #  target: [[3,1,0],[3,-1.,0],[3,2,0],[3,0,0],[3,-2,0]]
 #  target: [[10,0,0]]
-  max_rand_velocity: 12.0
-  pos_target: [[58,-20,2],[58,-10,2],[58,0,2],[58,10,2],[58,20,2]]
+  max_rand_velocity: 8.0
+  pos_target: [[28,0,2]]
+#  pos_target: [[56,-20,2],[56,-10,2],[56,0,2],[56,10,2],[56,20,2]]
 #  pos_target: [[56,-24,5],[56,-12,5],[56,0,5],[56,12,5],[56,24,5]]
 #  target: [[5,0,0]]
 #  target: [[6,0,0]]
