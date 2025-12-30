@@ -2,6 +2,7 @@
 import os
 import cv2
 import numpy as np
+from run import build_two_color_colormap
 
 def build_occupancy(h, w, square, circle):
     occ = np.zeros((h, w), dtype=np.uint8)
@@ -79,8 +80,9 @@ def main():
 
     occ = build_occupancy(H, W, square, circle)
     esdf_m = compute_esdf(occ, resolution=resolution)
+    custom_lut = build_two_color_colormap(cv2.COLORMAP_PARULA, pos1=50, pos2=250, reverse=False)
 
-    color = colorize_esdf(esdf_m, occ=occ, max_abs_m=None, cmap=cv2.COLORMAP_PARULA, use_log=False)
+    color = colorize_esdf(esdf_m, occ=occ, max_abs_m=None, cmap=custom_lut, use_log=False)
     color = overlay_obstacles(color, occ, color=(255, 255, 255))
 
     # Draw gradient directions (black arrows)

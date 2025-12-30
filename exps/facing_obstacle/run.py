@@ -23,11 +23,11 @@ from VisFly.utils.common import load_yaml_config
 def parse_args():
     parser = argparse.ArgumentParser(description='Run experiments', add_help=False)
     parser.add_argument('--comment', '-c', type=str, default="std")
-    parser.add_argument("--train", "-t", type=int, default=1)
+    parser.add_argument("--train", "-t", type=int, default=0)
     parser.add_argument("--algorithm", "-a", type=str, default="SHAC")
     parser.add_argument("--env", "-e", type=str, default="navigation")
     parser.add_argument("--seed", "-s", type=int, default=42)
-    parser.add_argument("--weight", "-w", type=str, default=None, )
+    parser.add_argument("--weight", "-w", type=str, default="BPTT_deterministic_share0.6_max12_1.zip", )
     return parser
 
 
