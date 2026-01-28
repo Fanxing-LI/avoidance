@@ -50,10 +50,13 @@ class Test(TestBase):
         agent_index = [i for i in range(env.num_agent)]
         self.eq_r = []
         self.eq_l = []
+        self.finish_t = th.zeros(env.num_agent)
+
+
 
         while True:
             with th.no_grad():
-                action = policy.predict(obs, deterministic=True, sample=True)
+                action = policy.predict(obs, deterministic=True, sample=False)
                 if isinstance(action, tuple):
                     action = action[0]
                 # obs, reward, done, info = env.step(action, is_test=True)
@@ -79,18 +82,21 @@ class Test(TestBase):
                 self.render_image_all.append(render_image)
             # done_all[done] = True
             if done.any():
+                dones_i = th.where(th.as_tensor(done))[0]
                 for i in reversed(record_ls):
-                    if env.position[i,0]>=56:
+                    if i in dones_i:
+                    # if env.position[i,0]>=56:
                         record_ls.remove(i)
                         if env.envs.once_collided[i]:
                             self.is_success[i] = 0
                         else:
                             self.is_success[i] = 1
-            for i in reversed(agent_index):
-                if done[i]:
-                    self.eq_r.append(info[i]['episode']['r'].item())
-                    self.eq_l.append(info[i]['episode']['l'].item())
-                    agent_index.remove(i)
+        # for i in reversed(agent_index):
+        #             if done[i]:
+                        self.eq_r.append(info[i]['episode']['r'].item())
+                        self.eq_l.append(info[i]['episode']['l'].item())
+                        self.finish_t[i] = env.t[i].item()
+                        agent_index.remove(i)
 
             if len(agent_index) == 0:
                 break
@@ -116,6 +122,35 @@ class Test(TestBase):
                 self.save_video()
         render_video = th.as_tensor(np.stack(self.render_image_all, axis=0)).unsqueeze(0) if len(self.render_image_all) > 0 else None
         # return figs, render_video, mean_r, mean_l
+
+        # of obs has key depth2
+        if "depth2" in self.obs_all[0]:
+            depth2_size = self.obs_all[0]["depth2"].shape[-2:]
+            self._img_names.append("depth_merge")
+            for obs in self.obs_all:
+                depth0 = obs["depth"].permute(0, 2, 3, 1).cpu().numpy()
+                merge = th.zeros(depth0.shape[0], 1, *depth2_size)
+                depth1 = obs["depth2"]
+                # shape = depth1.shape
+                # enlarge depth0 to depth1 size using torchvision
+                for i, d in enumerate(depth0):
+                    merge[i, 0] = th.from_numpy(cv2.resize(d, (depth2_size[1], depth2_size[0]), interpolation=cv2.INTER_NEAREST))*10
+                # resized_img = cv2.resize(depth0, (48,64), interpolation=cv2.INTER_NEAREST)
+                obs["depth_merge"] = np.concatenate([merge, depth1], axis=2)
+            self.save_video()
+            self.save_test_info()
+
+    def save_test_info(self):
+        # average of max speed during test
+        state_data = th.stack(self.state_all).cpu().numpy()
+        max_speeds = np.max(np.linalg.norm(state_data[:,:,7:10], axis=2), axis=0)
+        for i, max_speed in enumerate(max_speeds):
+            print(f"Agent {i} max speed during test: {max_speed:.2f} m/s")
+
+        # average of mean speed during test
+        mean_speeds = 56 / self.finish_t.numpy()
+        print(f"\nMean speeds during test:{mean_speeds.mean()}")
+
         success = np.array([info["episode"]["extra"]["collision"] for info in self.info_all[-1]]).astype(int)
         success_rate = 1-success.sum().item() / success.shape[0]
         print(f"Env {i} success rate: {success_rate*100:.2f}%")
@@ -123,19 +158,23 @@ class Test(TestBase):
 
         print("success rate2:", self.is_success.sum().item()/self.model.env.num_envs)
         print("type2 col index:", th.where(self.is_success==0)[0])
-        
-        self._img_names.append("depth_merge")
-        for obs in self.obs_all:
-            depth0 = obs["depth"].permute(0, 2, 3, 1).cpu().numpy()
-            merge = th.zeros(depth0.shape[0], 1, 48, 64)
-            depth1 = obs["depth2"]
-            # shape = depth1.shape
-            # enlarge depth0 to depth1 size using torchvision
-            for i, d in enumerate(depth0):
-                merge[i, 0] = th.from_numpy(cv2.resize(d, (64,48), interpolation=cv2.INTER_NEAREST))*10
-            # resized_img = cv2.resize(depth0, (48,64), interpolation=cv2.INTER_NEAREST)
-            obs["depth_merge"] = np.concatenate([merge, depth1], axis=2)
-        self.save_video()
+
+        # save infos in md file
+        if self.save_path is not None:
+            with open(self.save_path + "/test_info.md", "w") as f:
+                f.write(f"# Test Info for {self.name}\n\n")
+                f.write(f"## Max Speeds (m/s)\n")
+                for i, max_speed in enumerate(max_speeds):
+                    f.write(f"- Agent {i}: {max_speed:.2f} m/s\n")
+                f.write(f"\n## Mean Speeds (m/s)\n")
+                for i, mean_speed in enumerate(mean_speeds):
+                    f.write(f"- Agent {i}: {mean_speed:.2f} m/s\n")
+                f.write(f"\n## Success Rates\n")
+                for i in range(self.model.env.num_envs):
+                    success = np.array([info["episode"]["extra"]["collision"] for info in self.info_all[-1]]).astype(int)
+                    success_rate = 1 - success.sum().item() / success.shape[0]
+                    f.write(f"- Env {i}: {success_rate*100:.2f}%\n")
+                f.write(f"\nOverall Success Rate: {self.is_success.sum().item()/self.model.env.num_envs*100:.2f}%\n")
 
     def draw(self, names=None):
         state_data = th.stack(self.state_all).cpu()
@@ -167,6 +206,7 @@ class Test(TestBase):
             plt.legend()
             plt.subplot(3, 3, 6)
             plt.plot(t, col_dis[:, i], label="closest distance")
+            plt.ylim(0, 2)
             plt.subplot(3, 3, 7)
             plt.plot(t, state_data[:,i,13:16], label=["x","y","z"])
             plt.title("acceleration")

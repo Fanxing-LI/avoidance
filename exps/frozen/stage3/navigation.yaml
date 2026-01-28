@@ -1,0 +1,104 @@
+env:
+  num_agent_per_scene: 20
+  num_scene: 12
+  max_episode_steps: 768
+  sensor_kwargs:
+    - sensor_type: depth
+      uuid: depth
+      resolution: [ 12,16 ]
+      position: [ 0,0,-0.1 ]
+  scene_kwargs:
+    path: VisFly/datasets/visfly-beta/configs/scenes/30_mix
+    shuffle: True
+  random_kwargs:
+    state_generator:
+
+      class: Uniform
+      kwargs:
+
+      - position:
+          mean: [ 2, 0.0, 2.0 ]
+          half: [ 1, 29., 1.0 ]
+        orientation:
+          mean: [ 0., 0., 0. ]
+          half: [ 0.6, 0.6, 0.6 ]
+        velocity:
+          mean: [ 2,0.,0.0 ]
+          half: [ 2.,3.,0.5 ]
+        angular_velocity:
+          mean: [ 0.,0.,0. ]
+          half: [ 0.3,0.3,0.3 ]
+      - position:
+          mean: [ 58, 0.0, 2.0 ]
+          half: [ 1, 29., 1.0 ]
+        orientation:
+          mean: [ 0., 0., 3.14 ]
+          half: [ 0.5, 0.5, 0.5 ]
+        velocity:
+          mean: [ -2,0.,0.0 ]
+          half: [ 2.,3.,0.5 ]
+        angular_velocity:
+          mean: [ 0.,0.,0. ]
+          half: [ 0.3,0.3,0.3 ]
+      - position:
+          mean: [ 30, 28, 2.0 ]
+          half: [ 29., 1, 1.0 ]
+        orientation:
+          mean: [ 0., 0., -1.57 ]
+          half: [ 0.5, 0.5, 0.5]
+        velocity:
+          mean: [ 0., -2,0.0 ]
+          half: [ 3.,2.,0.5]
+        angular_velocity:
+          mean: [ 0.,0.,0. ]
+          half: [ 0.3,0.3,0.3]
+      - position:
+          mean: [ 30, -28, 2.0 ]
+          half: [ 29., 1, 1.0 ]
+        orientation:
+          mean: [ 0., 0., 1.57 ]
+          half: [ 0.5, 0.5, 0.5]
+        velocity:
+          mean: [ 0., 2,0.0 ]
+          half: [ 3.,2., 0.5]
+        angular_velocity:
+          mean: [ 0.,0.,0. ]
+          half: [ 0.3,0.3,0.3 ]
+  dynamics_kwargs:
+    dt: 0.03
+    ctrl_dt: 0.03
+    comm_delay: 0.06
+    ctrl_delay: True
+    action_type: "bodyrate"
+    cfg: "drone_d435i_jetson_orin_nx"
+
+  visual: True
+  device: cpu
+  requires_grad: True
+  tensor_output: True
+  max_rand_velocity: 15.0
+  is_collision_reset: True
+
+eval_env:
+  num_scene: 1
+  num_agent_per_scene: 1
+  visual: True
+  max_episode_steps: 512
+  tensor_output: True
+  device: cpu
+
+  scene_kwargs:
+    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_high_empty
+    render_settings:
+      mode: fix
+#      position: [[-2., 3, 5.5], [-2, 0, 4.5]]
+      resolution: [1080,1080]
+      view: top
+      position: [[30, 0, 35.5]]
+      trajectory: True
+      FOV: False
+      collision: True
+      approaching: True
+      axes: True
+#  target: [[3,1,0],[3,-1.,0],[3,2,0],[3,0,0],[3,-2,0]]
+#  target: [[10,0,0]]

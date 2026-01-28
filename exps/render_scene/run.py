@@ -57,26 +57,38 @@ def colorize_depth_numpy(depth: np.ndarray, cmap=cv2.COLORMAP_JET, invert=False)
 def build_two_color_colormap(base_cmap: int, pos1: int, pos2: int, reverse: bool = False) -> np.ndarray:
     """
     base_cmap: one of cv2.COLORMAP_* constants
-    pos1, pos2: integers in [0, 255] indicating where to sample the two endpoint colors from the base colormap
+    pos1, pos2: integers in [0, 255] indicating the range to extract from the base colormap
     reverse: if True, reverse the gradient direction
     returns: (256, 1, 3) uint8 LUT suitable for cv2.applyColorMap
     """
     pos1 = int(np.clip(pos1, 0, 255))
     pos2 = int(np.clip(pos2, 0, 255))
 
+    # Ensure pos1 < pos2
+    if pos1 > pos2:
+        pos1, pos2 = pos2, pos1
+
     # Create a ramp image to sample the base colormap LUT
     ramp = np.arange(256, dtype=np.uint8)
     ramp_img = ramp.reshape(256, 1)
     base_lut = cv2.applyColorMap(ramp_img, base_cmap)  # (256,1,3) BGR uint8
 
-    c1 = base_lut[pos1, 0].astype(np.float32)  # BGR
-    c2 = base_lut[pos2, 0].astype(np.float32)
+    # Extract the color segment
+    color_segment = base_lut[pos1:pos2 + 1, 0, :]  # (n_colors, 3)
 
-    t = np.linspace(0.0, 1.0, 256, dtype=np.float32)
+    # Resample to 256 colors using linear interpolation
+    n_colors = color_segment.shape[0]
+    old_indices = np.linspace(0, n_colors - 1, n_colors)
+    new_indices = np.linspace(0, n_colors - 1, 256)
+
+    # Interpolate each channel separately
+    lut = np.zeros((256, 3), dtype=np.float32)
+    for c in range(3):
+        lut[:, c] = np.interp(new_indices, old_indices, color_segment[:, c])
+
     if reverse:
-        t = 1.0 - t
-    # Interpolate per-channel
-    lut = (c1[None, :] * (1.0 - t[:, None]) + c2[None, :] * (t[:, None]))
+        lut = lut[::-1]
+
     lut = np.clip(lut, 0, 255).astype(np.uint8).reshape(256, 1, 3)
     return lut
 
@@ -93,26 +105,30 @@ def apply_custom_colormap(depth: np.ndarray, lut: np.ndarray, invert: bool = Fal
     return cv2.applyColorMap(d_u8, lut)
 
 
-env_config = load_yaml_config(os.path.dirname(os.path.abspath(__file__)) + f'/navigation.yaml')
+def main():
+    env_config = load_yaml_config(os.path.dirname(os.path.abspath(__file__)) + f'/navigation.yaml')
 
-eval_env = NavigationEnv(
-    **env_config["eval_env"]
-)
-eval_env.reset()
-img = eval_env.render()[0]
-depth = eval_env.sensor_obs["depth2"][0][0]
-# show img and save
-# Example: build a custom colormap by picking two colors from COLORMAP_JET at positions 30 and 220
-custom_lut = build_two_color_colormap(cv2.COLORMAP_WINTER, pos1=100, pos2=250, reverse=False)
-# You may also try different base maps, e.g., COLORMAP_WINTER or COLORMAP_TURBO
-# custom_lut = build_two_color_colormap(cv2.COLORMAP_TURBO, pos1=20, pos2=200)
+    eval_env = NavigationEnv(
+        **env_config["eval_env"]
+    )
+    eval_env.reset()
+    img = eval_env.render()[0]
+    depth = eval_env.sensor_obs["depth2"][0][0]
+    # show img and save
+    # Example: build a custom colormap by picking two colors from COLORMAP_JET at positions 30 and 220
+    custom_lut = build_two_color_colormap(cv2.COLORMAP_WINTER, pos1=0, pos2=256, reverse=False)
+    # You may also try different base maps, e.g., COLORMAP_WINTER or COLORMAP_TURBO
+    # custom_lut = build_two_color_colormap(cv2.COLORMAP_TURBO, pos1=20, pos2=200)
 
-# Optional input preprocessing: log scaling for better dynamic range on depth
-depth_img = apply_custom_colormap(np.log10(depth + 1e-6), custom_lut, invert=False)
+    # Optional input preprocessing: log scaling for better dynamic range on depth
+    depth_img = apply_custom_colormap(np.log10(depth + 1e-6), custom_lut, invert=False)
 
-# img = colorize_depth_numpy(img, cmap=cv2.COLORMAP_TURBO)
-cv2.imshow("render", img)
-# cv2.imshow("depth", depth_img)
-cv2.waitKey(100)
-cv2.imwrite(os.path.dirname(os.path.abspath(__file__))+"/rendered_image.png", img)
-cv2.imwrite(os.path.dirname(os.path.abspath(__file__))+"/rendered_depth.png", depth_img)
+    # img = colorize_depth_numpy(img, cmap=cv2.COLORMAP_TURBO)
+    cv2.imshow("render", img)
+    # cv2.imshow("depth", depth_img)
+    cv2.waitKey(100)
+    cv2.imwrite(os.path.dirname(os.path.abspath(__file__))+"/rendered_image.png", img)
+    cv2.imwrite(os.path.dirname(os.path.abspath(__file__))+"/rendered_depth.png", depth_img)
+
+if __name__ == "__main__":
+    main()

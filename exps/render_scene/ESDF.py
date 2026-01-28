@@ -49,14 +49,13 @@ def overlay_obstacles(color_bgr, occ, color=(255, 255, 255)):
     color_bgr[edges > 0] = color
     return color_bgr
 
-def draw_gradient_arrows(base_img_bgr, esdf_m, occ, step=16, arrow_len_px=12, thickness=1, color=(0, 0, 0)):
+
+def draw_gradient_arrows(base_img_bgr, esdf_m, occ, step=16, arrow_len_px=12, thickness=2, color=(0, 0, 0)):
     """
-    Draw normalized ESDF gradient arrows.
-    - step: sampling stride in pixels.
-    - arrow_len_px: arrow length in pixels.
+    Draw normalized ESDF gradient arrows with triangle heads.
     """
     H, W = esdf_m.shape
-    dy, dx = np.gradient(esdf_m.astype(np.float32))  # returns (dy, dx)
+    dy, dx = np.gradient(esdf_m.astype(np.float32))
     mag = np.sqrt(dx * dx + dy * dy) + 1e-8
     nx, ny = dx / mag, dy / mag
 
@@ -67,11 +66,29 @@ def draw_gradient_arrows(base_img_bgr, esdf_m, occ, step=16, arrow_len_px=12, th
                 continue
             if mag[y, x] < 1e-3:
                 continue
+
+            # Main line
             x2 = int(x + nx[y, x] * arrow_len_px)
             y2 = int(y + ny[y, x] * arrow_len_px)
-            cv2.arrowedLine(img, (x, y), (x2, y2), color, thickness, tipLength=0.35)
-    return img
+            cv2.line(img, (x, y), (x2, y2), color, thickness)
 
+            # Triangle arrowhead
+            head_len = arrow_len_px * 0.4
+            angle = np.arctan2(ny[y, x], nx[y, x])
+
+            # Left wing
+            x_left = int(x2 - head_len * np.cos(angle + np.pi / 6))
+            y_left = int(y2 - head_len * np.sin(angle + np.pi / 6))
+
+            # Right wing
+            x_right = int(x2 - head_len * np.cos(angle - np.pi / 6))
+            y_right = int(y2 - head_len * np.sin(angle - np.pi / 6))
+
+            # Draw filled triangle
+            pts = np.array([[x2, y2], [x_left, y_left], [x_right, y_right]], np.int32)
+            cv2.fillPoly(img, [pts], color)
+
+    return img
 def main():
     H, W = 712, 1024
     resolution = 0.01
@@ -80,18 +97,18 @@ def main():
 
     occ = build_occupancy(H, W, square, circle)
     esdf_m = compute_esdf(occ, resolution=resolution)
-    custom_lut = build_two_color_colormap(cv2.COLORMAP_PARULA, pos1=50, pos2=250, reverse=False)
-
+    custom_lut = build_two_color_colormap(cv2.COLORMAP_TURBO, pos1=0, pos2=210, reverse=False)
+    # custom_lut = cv2.COLORMAP_TURBO
     color = colorize_esdf(esdf_m, occ=occ, max_abs_m=None, cmap=custom_lut, use_log=False)
     color = overlay_obstacles(color, occ, color=(255, 255, 255))
 
     # Draw gradient directions (black arrows)
-    grad_img = draw_gradient_arrows(color, esdf_m, occ, step=16, arrow_len_px=12, thickness=1, color=(0, 0, 0))
+    grad_img = draw_gradient_arrows(color, esdf_m, occ, step=40, arrow_len_px=30, thickness=2, color=(0, 0, 0))
 
     out_dir = os.path.dirname(__file__)
     cv2.imwrite(os.path.join(out_dir, "esdf_color.png"), color)
     cv2.imwrite(os.path.join(out_dir, "esdf_grad.png"), grad_img)
-    cv2.imwrite(os.path.join(out_dir, "esdf_float.exr"), esdf_m.astype(np.float32))
+    # cv2.imwrite(os.path.join(out_dir, "esdf_float.exr"), esdf_m.astype(np.float32))
 
 if __name__ == "__main__":
     main()

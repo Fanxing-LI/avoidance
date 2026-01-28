@@ -5,9 +5,16 @@ from typing import Optional, Dict
 import torch as th
 from VisFly.utils.randomization import TargetUniformRandomizer, UniformStateRandomizer
 from VisFly.utils.type import TensorDict
+from gymnasium import spaces
+from debug.angle_trans import transform_distance_by_angle
 
-dl = lambda  x: x.clone().detach()
+dl = lambda x: x.clone().detach()
 
+max_dis = 24.
+min_dis = 0.1
+scale = 3.
+
+preprocess = lambda x: 1 / (1 + th.as_tensor(x).clamp(min_dis, max_dis) / scale)
 
 def get_along_vertical_vector(base, obj):
     base_norm = base.norm(dim=1, keepdim=True)
@@ -56,6 +63,7 @@ class NavigationEnv(DroneGymEnvsBase):
             max_episode_steps: int = 256,
             tensor_output: bool = True,
             max_rand_velocity: float = 7.0,
+            min_rand_velocity: float = 3.0,
             target_random: bool = True,
             pos_target: Optional[th.Tensor] = None,
             *args,
@@ -88,8 +96,12 @@ class NavigationEnv(DroneGymEnvsBase):
         else:
             self.target = th.ones((self.num_envs, 1)) @ th.as_tensor([[15, 0., 1]])
         self.max_rand_velocity = max_rand_velocity
+        self.min_rand_velocity = min_rand_velocity
         self.success_radius = 0.5
-
+        max_depth = np.inf
+        self.observation_space.spaces["depth"] = spaces.Box(
+            low=0, high=max_depth, shape=[1] + [12, 16], dtype=np.float32
+        )
         self.target_randomizers = [
             TargetUniformRandomizer(
             # UniformStateRandomizer(
@@ -108,12 +120,23 @@ class NavigationEnv(DroneGymEnvsBase):
         if pos_target is not None:
             self.pos_target = th.tensor(pos_target)
 
+        self.radius = th.rand(self.num_envs) * 0.2 + 0.1
+
+        self.vel_ema = th.zeros((self.num_envs, 3), device=self.device)
+
+        self.alpha = 2 / (30 + 1)  # 约 0.065
+
+        self.pre_collision_dis = th.zeros(self.num_envs, device=self.device)
+
+
     def _reset_attr(self, indices=None,reset_latent=False):
         super()._reset_attr(indices)
-
-        if not self.pre_define_target:
-            indices = np.arange(self.num_envs) if indices is None else indices
-            for i in indices:
+        indices = np.arange(self.num_envs) if indices is None else indices
+        self.radius[indices] = th.rand(len(indices)) * 0.2 + 0.1
+        self.vel_ema[indices] = self.velocity[indices].detach()
+        self.pre_collision_dis[indices] = self.collision_vector[indices].norm(dim=-1)
+        for i in indices:
+            if not self.pre_define_target:
                 # pos, _, _, _ = self.target_randomizers[i].safe_generate(1)
                 # now consider pos generation as vel
                 # pos, _, _, _ = self.target_randomizers[i].safe_generate(1, position=th.zeros_like(self.position[i]))
@@ -122,41 +145,30 @@ class NavigationEnv(DroneGymEnvsBase):
                 vel = th.tensor([[30,0,2]])-dl(self.position[i:i+1])
                 # vel[:,2] = 0
                 vel_unit = vel / (vel.norm(dim=1, keepdim=True)+1e-6)
-                self.target[i] = vel_unit * th.rand(1) * self.max_rand_velocity
+                vel_rand = th.sqrt(self.min_rand_velocity ** 2 + th.rand(1) *
+                                  (self.max_rand_velocity ** 2 - self.min_rand_velocity ** 2))
+                self.target[i] = vel_unit * vel_rand
 
     def detach(self):
         super().detach()
-        self._pre_acc = self._pre_acc.detach()
+        self.vel_ema = self.vel_ema.detach()
+        self.pre_collision_dis = self.pre_collision_dis.detach()
 
     def get_observation(
             self,
             indices=None
     ) -> Dict:
+        self.vel_ema = self.alpha * (self.velocity) + (1 - self.alpha) * self.vel_ema
 
-        # target cat
-        # if self.max_target_dis:
-        #     rela = self.target - self.position
-        #     unit_rela = rela / (rela.norm(dim=1, keepdim=True)+1e-6)
-        #     distance = rela.norm(dim=1, keepdim=True).clip(0, self.max_target_dis)
-        #     new_target = (unit_rela * distance+self.position).detach()
-        # else:
-        #     new_target = self.target
         if hasattr(self, "pos_target"):
             pos_target = self.pos_target.repeat(self.num_scene, 1)
             rela_target = (pos_target - self.position)
             self.target = ((rela_target
                            / rela_target.norm(dim=1, keepdim=True))
                            * (rela_target.norm(dim=1, keepdim=True)/1).clamp_max(self.max_rand_velocity)
-                           # * (rela_target.norm(dim=1, keepdim=True)/1).clamp_max(self.max_rand_velocity)
                            )
-            # scale = ((1 + self.velocity.norm(dim=1) / (self.target.norm(dim=1)+1e-6)) / 2).clamp_min(1.)
-            # self.target = self.target * scale.unsqueeze(1)
 
         orientation = self.envs.dynamics._orientation.clone()
-        # rela = new_target - self.position
-        # rela_dis = rela.norm(dim=1, keepdim=True)
-        # normal_rela = rela #/ rela_dis.clamp_min(1.0).detach()
-        # head_target = orientation.world_to_head(normal_rela.T).T
         head_velocity = orientation.world_to_head((self.velocity-0).T).T
         head_target_velocity = dl(orientation.world_to_head(self.target.T).T)
         state = th.hstack([
@@ -168,94 +180,127 @@ class NavigationEnv(DroneGymEnvsBase):
             self.angular_velocity / 10,
         ]).to(self.device)
 
-        max_dis = 24.
-        min_dis = 0.1
-        scale = 3.
-
-        preprocess = lambda x: 1 / (1 + th.as_tensor(x).clamp(min_dis, max_dis) / scale)
-
         obs = TensorDict({
             "state": state,
-            "depth": preprocess(self.sensor_obs["depth"])
-            # "depth": 1 / (1 + th.tensor(self.sensor_obs["depth"]).clamp(min_dis, max_dis) / scale)
-            # "depth": th.tensor(self.sensor_obs["depth"]).clamp(min_dis, max_dis) / max_dis
+            "depth": F.max_pool2d(preprocess(self.sensor_obs["depth"]), kernel_size=4, stride=4)
+            # "depth": preprocess(self.sensor_obs["depth"])
         })
 
         if "depth2" in list(self.observation_space.keys()):
-            obs["depth2"] = th.tensor(self.sensor_obs["depth2"]).clamp(min_dis, max_dis)
-            max_pool2 = lambda x: F.max_pool2d(x, kernel_size=2, stride=2)
-            avg_pool2 = lambda x: F.avg_pool2d(x, kernel_size=2, stride=2)
-            max_pool4 = lambda x: F.max_pool2d(x, kernel_size=4, stride=4)
-            avg_pool4 = lambda x: F.avg_pool2d(x, kernel_size=4, stride=4)
-            # obs["depth"] = max_pool2(avg_pool2(1/(1+obs["depth2"]/scale)))
-            obs["depth"] = max_pool2(1/(1+avg_pool2(obs["depth2"]/scale)))
+            # obs["depth2"] = th.tensor(self.sensor_obs["depth2"]).clamp(min_dis, max_dis)
+            # max_pool2 = lambda x: F.max_pool2d(x, kernel_size=2, stride=2)
+            # avg_pool2 = lambda x: F.avg_pool2d(x, kernel_size=2, stride=2)
+            obs["depth"] = F.max_pool2d(preprocess(self.sensor_obs["depth2"]), kernel_size=4, stride=4)
 
-        #     obs["depth"] = 1 / (1 + f2(obs["depth2"]) / scale)
         return obs
 
     def get_success(self) -> th.Tensor:
-        # return th.zeros((self.num_envs,), dtype=th.bool, device=self.device)
-        # return ((self.position - self.target).norm(dim=1) <= self.success_radius) & \
-        #         (self.velocity.norm(dim=1) <= 0.05)
         reach_bound = (self.position[:,0]<1) | (self.position[:,0]>=59.) | \
                         (self.position[:,1]>29.) | (self.position[:,1]<=-29.)
         return reach_bound
 
     def get_reward(self,predicted_obs=None) -> th.Tensor:
+        def remap_collision_point(p, col_p, v):
+            pre_shape = None
+            if len(p.shape) == 3:
+                pre_shape = p.shape[:-1]
+                p, col_p, v = p.reshape(-1,3), col_p.reshape(-1,3), th.tile(v.unsqueeze(1),(1,5,1)).reshape(-1,3)
+            p,v = dl(p), dl(v)
+            col_vector = col_p - p
+            v_unit_vector = v / (v.norm(dim=1, keepdim=True)+1e-6)
+            col_distance = col_vector.norm(dim=1, keepdim=True) + 1e-6
+            col_unit_vector = col_vector / col_distance
+
+            col_unit_vector_proj = (col_unit_vector * v_unit_vector).sum(dim=1, keepdim=True)
+            col_unit_vector_align_v = col_unit_vector_proj * v_unit_vector
+            col_unit_vector_vertical_v = col_unit_vector - col_unit_vector_align_v
+            col_unit_vector_vertical_v = col_unit_vector_vertical_v / (col_unit_vector_vertical_v.norm(dim=1, keepdim=True)+1e-6)
+            current_angle = th.arccos(col_unit_vector_proj)
+            angle = transform_distance_by_angle(
+                d=col_distance,
+                a=current_angle,
+                min_d=0.3,
+                max_d=2.0,
+                max_angle_increase=0.9,
+            )
+            # v_unit_vector_vertical = col_unit_vector_vertical_v / (col_unit_vector_vertical_v.norm(dim=1, keepdim=True)+1e-6)
+            base_x, base_y = v_unit_vector, col_unit_vector_vertical_v
+            # max_dis = 4
+            # min_dis = 0.3
+            # angle = (col_distance.clamp(min_dis,max_dis)-min_dis) / (max_dis - min_dis) * (th.pi/2)
+            new_col_vector = (th.cos(angle) * base_x + th.sin(angle) * base_y) * col_distance
+            new_col_p = p + new_col_vector
+            if pre_shape is not None:
+                new_col_p = new_col_p.reshape(*pre_shape, 3)
+            return new_col_p.detach()
+
         # precise and stable target flight
         base_r = 0.1
 
-        # pos_r = (self.position - self.target).norm(dim=1) * -0.01
-
-        # scale = (self.position - self.target).norm(dim=1).detach().clamp_min(0.3)
-        # pos_r = pos_r / scale
-
-        vel_r = (self.velocity - self.target).norm(dim=1)
+        vel_r = (self.vel_ema - self.target).norm(dim=1)
+        # vel_r = (self.velocity - self.target).norm(dim=1)
         adaptive_beta = (self.velocity.norm(dim=1)/6).clamp_min(1.0)
-        vel_r = smooth_l1_loss_per_row(vel_r, adaptive_beta) * -0.025
+        vel_r = smooth_l1_loss_per_row(vel_r, 1.0) * -0.03
         ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.005
 
-        acc_r = (self.envs.acceleration-0).norm(dim=1).pow(1.3) * -0.002
+        acc_r = (self.envs.acceleration-0).norm(dim=1).pow(1.3) * -0.003
         # acc_r = smooth_l1_loss_per_row(acc_r, th.zeros_like(acc_r)) * -0.003
-        if not hasattr(self, "_pre_acc"):
-            self._pre_acc = self.envs.acceleration.clone()
-        acc_change_r = ((self.envs.acceleration - self._pre_acc).norm(dim=1)/ self.envs.dynamics.dt).pow(2) \
-                       * -0.0001
-        self._pre_acc = self.envs.acceleration.clone()
-        # act_r = self._action.norm(dim=1).cpu() * -0.001
-        act_change_r = (self.envs.dynamics._pre_action[-2].to(self.device).T -
-                        self._action.to(self.device)
-                        ).norm(dim=-1) / self.envs.dynamics.dt * -0.006
+        # act_change_r = (self.envs.dynamics._pre_action[-2].to(self.device).T -
+        #                 self._action.to(self.device)
+        #                 ).norm(dim=-1) / self.envs.dynamics.dt * -0.0001
 
         #  heading alignment
         unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
         align = (unit_velocity * self.direction).sum(dim=1)
-        align_r = align * self.velocity.norm(dim=1) * 0.005
+        align_r = align * self.velocity.norm(dim=1) * 0.004
 
-        share_factor_collision = -0.6
+        share_factor_collision = -0.03
         # share_factor_collision = 0.0
         # collision penalty
-        collision_dis = self.collision_vector.norm(dim=1).clamp_min(0.)
-        collision_dir = self.collision_vector / (collision_dis.unsqueeze(1)+1e-6)
-        collision_dis = (collision_dis - 0.1).abs()
+        if self.envs.sceneManager.col_refine_steps:
+            dt = th.linspace(0,  self.envs.sceneManager.col_refine_dt, self.envs.sceneManager.col_refine_steps+1)[:-1]
+            dp = dt.unsqueeze(0).unsqueeze(2) * self.velocity.unsqueeze(1)
+            position = self.position.unsqueeze(1) + dp
+            collision_point = remap_collision_point(position, self.collision_point, self.velocity, )
+            # position = (self.position-0).unsqueeze(1) - 0
+            collision_vector = collision_point - position
+            collision_dis = (collision_vector-0).norm(dim=-1).clamp_min(0.) - self.radius[..., None]
+            # collision_dis = (collision_vector-0).norm(dim=-1).clamp_min(0.) - 0.1
+        else:
+            collision_point = self.collision_point
+            collision_vector = collision_point - self.position
+            collision_dis = collision_vector.norm(dim=-1).clamp_min(0.) - self.radius
         # approaching_point = self.envs.approaching_point
         # velocity
-        thre_vel = 1.0
-        weight = ((thre_vel-collision_dis.detach()).clamp(min=0, )/thre_vel).pow(1)
+        thre_vel = 2.0
+        weight = ((thre_vel-collision_dis).clamp(min=0, )/thre_vel).pow(2)
         # weight = 1 / (1 + ((thre_vel-collision_dis) * 0.3).clamp(min=0,))
-        col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
-        col_vel_r = col_approach_velocity * weight * share_factor_collision
+        # col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
+        if self.envs.sceneManager.col_refine_steps:
+            distances = th.hstack([self.pre_collision_dis.unsqueeze(1), collision_dis])
+            col_approach_velocity = (-th.diff(distances, dim=1) * 33 * 5).detach().clamp_min(0)  # dt and density
+        # col_approach_velocity = (-(self.collision_vector.norm(dim=-1) - self.pre_collision_dis).detach() * 33).clamp_min(0)
+        else:
+            col_approach_velocity = (-(self.collision_vector.norm(dim=-1) - self.pre_collision_dis).detach() * 33).clamp_min(0)
 
         # position
-        k = 0.005
-        func = lambda x: 6 * k / (x+k)
-        func3 = lambda x: 2.5 * th.log(1+th.exp(-32*x))
+        k = 0.01
+        func = lambda x: 2.5 * k / (x+k)
+        func3 = lambda x: 7.5 * th.log(1+th.exp(-32*x))
         func2 = lambda x: -x
-        col_dis_r = func(collision_dis) * share_factor_collision
+
+        collision_dis = (self.collision_point - position).norm(dim=-1).clamp_min(0.) - self.radius[..., None]
+        col_dis_r = func3(collision_dis) * col_approach_velocity * share_factor_collision
+        col_vel_r = (col_approach_velocity.detach() * weight) * share_factor_collision
+
+        if self.envs.sceneManager.col_refine_steps:
+            col_dis_r = col_dis_r.mean(dim=-1)
+            col_vel_r = col_vel_r.mean(dim=-1)
 
         reward = {
             "reward": base_r + vel_r + ang_r + align_r
-                    + act_change_r + acc_r
+                    # + act_change_r
+                      + acc_r
                     # + acc_change_r
                     + col_vel_r + col_dis_r
             ,
@@ -266,8 +311,10 @@ class NavigationEnv(DroneGymEnvsBase):
             "align_r": dl(align_r),
             "col_vel_r": dl(col_vel_r),
             "col_dis_r": dl(col_dis_r),
-            "acc_change_r": dl(acc_change_r),
-            # "act_r": dl(act_r),
-            "act_change_r": dl(act_change_r),
+            # "act_change_r": dl(act_change_r),
         }
+        if self.envs.sceneManager.col_refine_steps:
+            self.pre_collision_dis = collision_vector[:,-1,:].norm(dim=-1).clone()
+        else:
+            self.pre_collision_dis = self.collision_vector.norm(dim=-1).clone()
         return reward

@@ -5,6 +5,7 @@ sys.path.append(os.getcwd())
 from envs.HoverEnv import HoverEnv
 from envs.ObjectTrackingEnv import ObjectTrackingEnv
 from envs.NavigationEnv import NavigationEnv
+from envs.RealNavigationEnv import RealNavigationEnv
 from algorithms.BPTT_series.SHAC import SHAC
 from algorithms.BPTT_series.BPTT import BPTT
 from VisFly.utils.algorithms.PPO import PPO
@@ -44,12 +45,11 @@ alg_alias = {
     "SAC": SAC,
 }
 
-
 def main(debug_env=False):
     args = parse_args().parse_args()
 
     save_folder = os.path.dirname(os.path.abspath(sys.argv[0])) + f"/saved/{args.env}/"
-
+    load_folder = os.path.dirname(os.path.abspath(sys.argv[0])) + f"/../std/saved/{args.env}/"
     config = load_yaml_config(os.path.dirname(os.path.abspath(__file__)) + f'/alg_cfgs/{args.env}/{args.algorithm}.yaml')
     env_config = load_yaml_config(os.path.dirname(os.path.abspath(__file__)) + f'/env_cfgs/{args.env}.yaml')
 
@@ -72,14 +72,17 @@ def main(debug_env=False):
 
         if args.weight is not None:
             # model = model.load(path=save_folder + args.weight, env=env)
-            model.load_parameters(save_folder + args.weight)
+            try:
+                model.load_parameters(load_folder + args.weight)
+            except FileNotFoundError:
+                model.load_parameters(save_folder + args.weight)
             model.create_save_path(args.comment)
 
         model.learn(**config["learn"])
         model.save()
 
     else:
-        eval_env = env_alias[args.env](
+        eval_env = RealNavigationEnv(
             **env_config["eval_env"]
         )
 
