@@ -156,7 +156,8 @@ class NavigationEnv(DroneGymEnvsBase):
 
     def get_observation(
             self,
-            indices=None
+            indices=None,
+            predicted_obs: Optional[Dict] = None
     ) -> Dict:
         self.vel_ema = self.alpha * (self.velocity) + (1 - self.alpha) * self.vel_ema
 
@@ -241,7 +242,7 @@ class NavigationEnv(DroneGymEnvsBase):
         # vel_r = (self.velocity - self.target).norm(dim=1)
         adaptive_beta = (self.velocity.norm(dim=1)/6).clamp_min(1.0)
         vel_r = smooth_l1_loss_per_row(vel_r, 1.0) * -0.03
-        ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.005
+        ang_r = (self.angular_velocity - 0).norm(dim=1) * -0.02
 
         acc_r = (self.envs.acceleration-0).norm(dim=1).pow(1.3) * -0.003
         # acc_r = smooth_l1_loss_per_row(acc_r, th.zeros_like(acc_r)) * -0.003
@@ -272,7 +273,7 @@ class NavigationEnv(DroneGymEnvsBase):
             collision_dis = collision_vector.norm(dim=-1).clamp_min(0.) - self.radius
         # approaching_point = self.envs.approaching_point
         # velocity
-        thre_vel = 2.0
+        thre_vel = 3.0
         weight = ((thre_vel-collision_dis).clamp(min=0, )/thre_vel).pow(2)
         # weight = 1 / (1 + ((thre_vel-collision_dis) * 0.3).clamp(min=0,))
         # col_approach_velocity = (self.velocity * collision_dir.detach()).sum(dim=1).clamp_min(0.)
@@ -291,7 +292,7 @@ class NavigationEnv(DroneGymEnvsBase):
 
         collision_dis = (self.collision_point - position).norm(dim=-1).clamp_min(0.) - self.radius[..., None]
         col_dis_r = func3(collision_dis) * col_approach_velocity * share_factor_collision
-        col_vel_r = (col_approach_velocity.detach() * weight) * share_factor_collision
+        col_vel_r = (col_approach_velocity.detach() * weight) * share_factor_collision * 0.5
 
         if self.envs.sceneManager.col_refine_steps:
             col_dis_r = col_dis_r.mean(dim=-1)
