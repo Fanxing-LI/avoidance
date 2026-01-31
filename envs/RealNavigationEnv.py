@@ -10,10 +10,12 @@ class RealNavigationEnv(NavigationEnv):
                  ):
         super(RealNavigationEnv, self).__init__(**kwargs,
                                                 )
+
     def get_success(self) -> th.Tensor:
         reach_bound = (self.position[:,0]<0) | (self.position[:,0]>=58.) | \
                         (self.position[:,1]>30.) | (self.position[:,1]<=-30.)
         return reach_bound
+
     def get_observation(
             self,
             indices=None,

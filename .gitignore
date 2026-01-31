@@ -207,8 +207,8 @@ __marimo__/
 
 .vscode/
 .idea/
-debug/*
-！debug/*.py
+#debug/*
+#！debug/*.py
 datasets/*
 !datasets/.gitkeep
 

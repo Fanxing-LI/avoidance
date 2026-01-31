@@ -16,6 +16,15 @@ scale = 3.
 
 preprocess = lambda x: 1 / (1 + th.as_tensor(x).clamp(min_dis, max_dis) / scale)
 
+preprocess_linear = lambda x: 1 - (th.as_tensor(x).clamp(min_dis, max_dis) - min_dis) / (max_dis - min_dis)
+
+def preprocess_new(x):
+    x = th.as_tensor(x).clamp(0.1, 24)
+    # 对数压缩：0.1m→-2.3, 3m→1.1, 24m→3.2
+    x_log = th.log(x)
+    # 归一化到 [0, 1]：近处→1, 远处→0
+    return 1 - (x_log - th.log(th.tensor(0.1))) / (th.log(th.tensor(24)) - th.log(th.tensor(0.1)))
+
 def get_along_vertical_vector(base, obj):
     base_norm = base.norm(dim=1, keepdim=True)
     obj_norm = obj.norm(dim=1, keepdim=True)
@@ -183,16 +192,18 @@ class NavigationEnv(DroneGymEnvsBase):
 
         obs = TensorDict({
             "state": state,
-            "depth": F.max_pool2d(preprocess(self.sensor_obs["depth"]), kernel_size=4, stride=4)
+            "depth": F.max_pool2d(preprocess(self.sensor_obs["depth"]), kernel_size=4, stride=4),
+            # "depth2": F.max_pool2d(preprocess_linear(self.sensor_obs["depth"]), kernel_size=4, stride=4)
+            # "depth": F.max_pool2d(preprocess(self.sensor_obs["depth"]), kernel_size=4, stride=4)
             # "depth": preprocess(self.sensor_obs["depth"])
         })
 
-        if "depth2" in list(self.observation_space.keys()):
-            # obs["depth2"] = th.tensor(self.sensor_obs["depth2"]).clamp(min_dis, max_dis)
-            # max_pool2 = lambda x: F.max_pool2d(x, kernel_size=2, stride=2)
-            # avg_pool2 = lambda x: F.avg_pool2d(x, kernel_size=2, stride=2)
-            obs["depth"] = F.max_pool2d(preprocess(self.sensor_obs["depth2"]), kernel_size=4, stride=4)
-
+        # if "depth2" in list(self.observation_space.keys()):
+        #     # obs["depth2"] = th.tensor(self.sensor_obs["depth2"]).clamp(min_dis, max_dis)
+        #     # max_pool2 = lambda x: F.max_pool2d(x, kernel_size=2, stride=2)
+        #     # avg_pool2 = lambda x: F.avg_pool2d(x, kernel_size=2, stride=2)
+        #     obs["depth"] = F.max_pool2d(preprocess(self.sensor_obs["depth2"]), kernel_size=4, stride=4)
+        #
         return obs
 
     def get_success(self) -> th.Tensor:
@@ -303,7 +314,7 @@ class NavigationEnv(DroneGymEnvsBase):
                     # + act_change_r
                       + acc_r
                     # + acc_change_r
-                    + col_vel_r + col_dis_r
+                    # + col_vel_r + col_dis_r
             ,
             # "pos_r": dl(pos_r),
             "vel_r": dl(vel_r),
