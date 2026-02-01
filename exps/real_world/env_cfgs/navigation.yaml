@@ -1,6 +1,6 @@
 env:
   num_agent_per_scene: 10
-  num_scene: 10
+  num_scene: 8
   max_episode_steps: 768
   scene_kwargs:
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_pillar
@@ -142,7 +142,7 @@ eval_env:
 #    path: VisFly/datasets/visfly-beta/configs/scenes/plane30_empty
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_high_mix/box30_wall_high_mix
 
-    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_0.02tree
+    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_0.08tree
 #    path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_gap
 
     # path: VisFly/datasets/visfly-beta/configs/scenes/box30_wall_0.02tree

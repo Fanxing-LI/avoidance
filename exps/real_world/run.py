@@ -7,6 +7,7 @@ from envs.ObjectTrackingEnv import ObjectTrackingEnv
 from envs.NavigationEnv import NavigationEnv
 from envs.RealNavigationEnv import RealNavigationEnv
 from algorithms.BPTT_series.SHAC import SHAC
+from algorithms.BPTT_series.SHACSample import SHACSample
 from algorithms.BPTT_series.BPTT import BPTT
 from VisFly.utils.algorithms.PPO import PPO
 from VisFly.utils.algorithms.SAC import SAC
@@ -43,6 +44,7 @@ alg_alias = {
     "SHAC": SHAC,
     "BPTT": BPTT,
     "SAC": SAC,
+    "SHACSample": SHACSample,
 }
 
 def main(debug_env=False):
@@ -61,6 +63,11 @@ def main(debug_env=False):
         env = env_alias[args.env](
             **env_config["env"]
         )
+        if "Sample" in args.algorithm:
+            train_env = env_alias[args.env](
+                **env_config["env"]
+            )
+            config["algorithm"]["train_env"] = train_env
 
         model = alg_alias[args.algorithm](
             env=env,

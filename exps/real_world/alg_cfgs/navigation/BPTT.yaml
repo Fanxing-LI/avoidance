@@ -14,6 +14,13 @@ algorithm:
           stride: 2
           padding: 1
           layer: [256]
+
+#        depth2:
+#          channel: [ 32, 64,128 ]
+#          kernel_size: 2
+#          stride: 2
+#          padding: 1
+#          layer: [256]
  #          max_pool: 2
 #           ln: True
 #          bias: False
@@ -35,19 +42,19 @@ algorithm:
     activation_fn: leaky_relu
     optimizer_class: adamW
     optimizer_kwargs:
-      weight_decay: 0.0001
+      weight_decay: 0.00005
     share_features_extractor: False
 
   learning_rate:
     class: cosine
     kwargs:
       initial: 0.0001
-      final: 0.00002
+      final: 0.0001
       period: 0.1
 
-  horizon: 384
+  horizon: 150
   tau: 0.005
-  gamma: 0.99
+  gamma: 0.997
   device: cuda
   gradient_steps: 10
   train_freq: 48
@@ -63,9 +70,9 @@ learn:
   # log_interval: 20
 
 test:
-  is_fig: True
+  is_fig: False
   is_fig_save: True
-  is_video: True
+  is_video: False
   is_video_save: True
   is_sub_video: True
   render_kwargs: { }

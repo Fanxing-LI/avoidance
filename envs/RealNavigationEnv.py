@@ -65,8 +65,8 @@ class RealNavigationEnv(NavigationEnv):
             "state": state,
             # "depth": preprocess(mean_pool30(self.sensor_obs["depth"])),
             # "depth": max_pool5(preprocess(mean_pool6(self.sensor_obs["depth"]))),
-            "depth": flex_max_pool(preprocess(flex_max_pool(self.sensor_obs["depth"], k1)),int(dim/k1)),
-            "depth2": self.sensor_obs["depth"],
+            # "depth": flex_max_pool(preprocess(flex_max_pool(self.sensor_obs["depth"], k1)),int(dim/k1)),
+            "depth": self.sensor_obs["depth"],
         })
 
         # if "depth2" in list(self.observation_space.keys()):

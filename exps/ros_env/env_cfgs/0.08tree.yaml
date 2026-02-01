@@ -121,12 +121,9 @@ eval_env:
   sensor_kwargs:
     - sensor_type: depth
       uuid: depth
-      resolution: [ 12,16 ]
+      resolution: [ 480,640 ]
       position: [ 0,0,-0.1 ]
-    - sensor_type: depth
-      uuid: depth2
-      resolution: [ 48,64 ]
-      position: [ 0,0,-0.1 ]
+
   random_kwargs:
     state_generator:
       class: Uniform

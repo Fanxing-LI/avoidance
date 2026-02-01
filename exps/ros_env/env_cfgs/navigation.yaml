@@ -125,7 +125,7 @@ eval_env:
       position: [ 0,0,-0.1 ]
     - sensor_type: depth
       uuid: depth2
-      resolution: [ 48,64 ]
+      resolution: [ 480,640 ]
       position: [ 0,0,-0.1 ]
   random_kwargs:
     state_generator:

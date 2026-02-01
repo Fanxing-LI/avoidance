@@ -207,7 +207,7 @@ class NavigationEnv(DroneGymEnvsBase):
         return obs
 
     def get_success(self) -> th.Tensor:
-        reach_bound = (self.position[:,0]<1) | (self.position[:,0]>=59.) | \
+        reach_bound = (self.position[:,0]<1) | (self.position[:,0]>=58.) | \
                         (self.position[:,1]>29.) | (self.position[:,1]<=-29.)
         return reach_bound
 
@@ -257,9 +257,9 @@ class NavigationEnv(DroneGymEnvsBase):
 
         acc_r = (self.envs.acceleration-0).norm(dim=1).pow(1.3) * -0.003
         # acc_r = smooth_l1_loss_per_row(acc_r, th.zeros_like(acc_r)) * -0.003
-        # act_change_r = (self.envs.dynamics._pre_action[-2].to(self.device).T -
+        # act_change_r = ((self.envs.dynamics._pre_action[-2].to(self.device).T -
         #                 self._action.to(self.device)
-        #                 ).norm(dim=-1) / self.envs.dynamics.dt * -0.0001
+        #                 ).norm(dim=-1) / self.envs.dynamics.dt).pow(2) * -0.0002
 
         #  heading alignment
         unit_velocity = self.velocity / (self.velocity.norm(dim=1, keepdim=True)+1e-6)
@@ -279,6 +279,7 @@ class NavigationEnv(DroneGymEnvsBase):
             collision_dis = (collision_vector-0).norm(dim=-1).clamp_min(0.) - self.radius[..., None]
             # collision_dis = (collision_vector-0).norm(dim=-1).clamp_min(0.) - 0.1
         else:
+            position = self.position
             collision_point = self.collision_point
             collision_vector = collision_point - self.position
             collision_dis = collision_vector.norm(dim=-1).clamp_min(0.) - self.radius
@@ -301,7 +302,8 @@ class NavigationEnv(DroneGymEnvsBase):
         func3 = lambda x: 7.5 * th.log(1+th.exp(-32*x))
         func2 = lambda x: -x
 
-        collision_dis = (self.collision_point - position).norm(dim=-1).clamp_min(0.) - self.radius[..., None]
+        radius = self.radius[..., None] if self.envs.sceneManager.col_refine_steps else self.radius
+        collision_dis = (self.collision_point - position).norm(dim=-1).clamp_min(0.) - radius
         col_dis_r = func3(collision_dis) * col_approach_velocity * share_factor_collision
         col_vel_r = (col_approach_velocity.detach() * weight) * share_factor_collision * 0.5
 
@@ -314,7 +316,7 @@ class NavigationEnv(DroneGymEnvsBase):
                     # + act_change_r
                       + acc_r
                     # + acc_change_r
-                    # + col_vel_r + col_dis_r
+                    + col_vel_r + col_dis_r
             ,
             # "pos_r": dl(pos_r),
             "vel_r": dl(vel_r),
