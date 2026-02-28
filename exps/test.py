@@ -52,8 +52,6 @@ class Test(TestBase):
         self.eq_l = []
         self.finish_t = th.zeros(env.num_agent)
 
-
-
         while True:
             with th.no_grad():
                 action = policy.predict(obs, deterministic=True, sample=False)

@@ -59,7 +59,7 @@ class RealNavigationEnv(NavigationEnv):
         flex_max_pool = lambda x, k: F.max_pool2d(th.as_tensor(x), kernel_size=k, stride=k)
         flex_avg_pool = lambda x, k: F.avg_pool2d(th.as_tensor(x), kernel_size=k, stride=k)
         flex_min_pool = lambda x, k: -F.max_pool2d(-th.as_tensor(x), kernel_size=k, stride=k)
-        dim = 30
+        dim = 40
         k1=10
         obs = TensorDict({
             "state": state,
