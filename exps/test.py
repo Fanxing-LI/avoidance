@@ -116,8 +116,8 @@ class Test(TestBase):
 
         if is_video:
             self.play(is_sub_video=is_sub_video)
-            if is_video_save:
-                self.save_video()
+        if is_video_save:
+            self.save_video()
         render_video = th.as_tensor(np.stack(self.render_image_all, axis=0)).unsqueeze(0) if len(self.render_image_all) > 0 else None
         # return figs, render_video, mean_r, mean_l
 

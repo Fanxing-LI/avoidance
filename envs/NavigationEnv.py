@@ -131,7 +131,6 @@ class NavigationEnv(DroneGymEnvsBase):
 
         self.radius = th.rand(self.num_envs) * 0.2 + 0.1
 
-        self.vel_ema = th.zeros((self.num_envs, 3), device=self.device)
 
         self.alpha = 2 / (30 + 1)  # 约 0.065
 
@@ -142,7 +141,6 @@ class NavigationEnv(DroneGymEnvsBase):
         super()._reset_attr(indices)
         indices = np.arange(self.num_envs) if indices is None else indices
         self.radius[indices] = th.rand(len(indices)) * 0.2 + 0.1
-        self.vel_ema[indices] = self.velocity[indices].detach()
         self.pre_collision_dis[indices] = self.collision_vector[indices].norm(dim=-1)
         for i in indices:
             if not self.pre_define_target:
@@ -160,7 +158,6 @@ class NavigationEnv(DroneGymEnvsBase):
 
     def detach(self):
         super().detach()
-        self.vel_ema = self.vel_ema.detach()
         self.pre_collision_dis = self.pre_collision_dis.detach()
 
     def get_observation(
@@ -168,7 +165,6 @@ class NavigationEnv(DroneGymEnvsBase):
             indices=None,
             predicted_obs: Optional[Dict] = None
     ) -> Dict:
-        # self.vel_ema = self.alpha * (self.velocity) + (1 - self.alpha) * self.vel_ema
 
         if hasattr(self, "pos_target"):
             pos_target = self.pos_target.repeat(self.num_scene, 1)
@@ -249,7 +245,6 @@ class NavigationEnv(DroneGymEnvsBase):
         # precise and stable target flight
         base_r = 0.1
 
-        # vel_r = (self.vel_ema - self.target).norm(dim=1)
         vel_r = (self.velocity - self.target).norm(dim=1)
         adaptive_beta = (self.velocity.norm(dim=1)/6).clamp_min(1.0)
         vel_r = smooth_l1_loss_per_row(vel_r, 1.0) * -0.03
@@ -273,7 +268,8 @@ class NavigationEnv(DroneGymEnvsBase):
             dt = th.linspace(0,  self.envs.sceneManager.col_refine_dt, self.envs.sceneManager.col_refine_steps+1)[:-1]
             dp = dt.unsqueeze(0).unsqueeze(2) * self.velocity.unsqueeze(1)
             position = self.position.unsqueeze(1) + dp
-            collision_point = remap_collision_point(position, self.collision_point, self.velocity, )
+            collision_point = self.envs.collision_point
+            # collision_point = remap_collision_point(position, self.collision_point, self.velocity, )
             # position = (self.position-0).unsqueeze(1) - 0
             collision_vector = collision_point - position
             collision_dis = (collision_vector-0).norm(dim=-1).clamp_min(0.) - self.radius[..., None]

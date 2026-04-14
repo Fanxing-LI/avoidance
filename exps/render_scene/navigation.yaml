@@ -134,7 +134,7 @@ eval_env:
           xyz_num: [1,1,1]
 
   scene_kwargs:
-    path: VisFly/datasets/visfly-beta/configs/scenes/box30_mix/render
+    path: VisFly/datasets/visfly-beta/configs/scenes/box30_mix
     render_settings:
       sensor_type: color
       mode: fix

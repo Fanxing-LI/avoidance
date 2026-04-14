@@ -47,14 +47,6 @@ class RealNavigationEnv(NavigationEnv):
         scale = 3.
 
         preprocess = lambda x: 1 / (1 + th.as_tensor(x).clamp(min_dis, max_dis) / scale)
-        mean_pool30 = lambda x: F.avg_pool2d(th.as_tensor(x), kernel_size=30, stride=30)
-        mean_pool15 = lambda x: F.avg_pool2d(th.as_tensor(x), kernel_size=15, stride=15)
-        max_pool15 = lambda x: F.max_pool2d(th.as_tensor(x), kernel_size=15, stride=15)
-        mean_pool6 = lambda x: F.avg_pool2d(th.as_tensor(x), kernel_size=6, stride=6)
-        max_pool5 = lambda x: F.max_pool2d(th.as_tensor(x), kernel_size=5, stride=5)
-
-        max_pool2 = lambda x: F.max_pool2d(x, kernel_size=2, stride=2)
-        avg_pool2 = lambda x: F.avg_pool2d(x, kernel_size=2, stride=2)
 
         flex_max_pool = lambda x, k: F.max_pool2d(th.as_tensor(x), kernel_size=k, stride=k)
         flex_avg_pool = lambda x, k: F.avg_pool2d(th.as_tensor(x), kernel_size=k, stride=k)
@@ -63,16 +55,9 @@ class RealNavigationEnv(NavigationEnv):
         k1=10
         obs = TensorDict({
             "state": state,
-            # "depth": preprocess(mean_pool30(self.sensor_obs["depth"])),
-            # "depth": max_pool5(preprocess(mean_pool6(self.sensor_obs["depth"]))),
-            # "depth": flex_max_pool(preprocess(flex_max_pool(self.sensor_obs["depth"], k1)),int(dim/k1)),
-            "depth": self.sensor_obs["depth"],
+            # "depth": self.sensor_obs["depth"],
+            "depth": flex_max_pool(preprocess(flex_max_pool(self.sensor_obs["depth"], k1)),int(dim/k1)),
+            "depth2": self.sensor_obs["depth"],
         })
-
-        # if "depth2" in list(self.observation_space.keys()):
-        # obs["depth2"] = self.sensor_obs["depth"]
-
-        # obs["depth"] = mean_pool32(obs["depth"])
-        #     # obs["depth"] = max_pool2(1/(1+avg_pool2(obs["depth2"]/scale)))
 
         return obs

@@ -55,7 +55,7 @@ def export_policy_to_onnx(model, save_path):
         def forward(self, state, depth):
             # Convert tensor input back to dictionary format expected by policy
             obs_dict = {"state": state, "depth": depth}
-            return self.policy.predict(obs_dict, deterministic=True, sample=True)
+            return self.policy.predict(obs_dict, deterministic=True, sample=False)
 
     # Wrap the policy
     wrapped_policy = PolicyWrapper(model.policy)

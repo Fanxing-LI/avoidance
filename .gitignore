@@ -255,3 +255,10 @@ logs/
 *.bag.partial
 *.db3
 *.db-journal
+
+# zip
+*.zip
+*.rar
+*.tar
+*.gz
+*.7z
