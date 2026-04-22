@@ -1,4 +1,5 @@
-# Avoidance
+# Simple but Stable, Fast and Safe: Achieve End-to-end Control by High-Fidelity Differentiable Simulation
+
 Obstacle avoidance is a fundamental vision-based task essential for enabling quadrotors to perform advanced applications. When planning the trajectory, existing approaches both on optimization and learning typically regard quadrotor as a point-mass model, giving path or velocity commands then tracking the commands by outer-loop controller.
 
 However, at high speeds, planned trajectories sometimes become dynamically infeasible in actual flight, which beyond the capacity of controller.
