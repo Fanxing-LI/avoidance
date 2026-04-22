@@ -13,7 +13,7 @@ Follow the instructions in [VisFly](https://github.com/SJTU-ViSYS-team/VisFly) t
 # clone the datasets
 ```bash
 cd avoidance/VisFly/datasets
-git clone https://huggingface.co/datasets/LiFanxing/visfly-beta/tree/avoidance
+git clone -b avoidance https://huggingface.co/datasets/LiFanxing/visfly-beta
 ```
 
 # train the policy
