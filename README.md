@@ -1,11 +1,14 @@
 # Avoidance
 Obstacle avoidance is a fundamental vision-based task essential for enabling quadrotors to perform advanced applications. When planning the trajectory, existing approaches both on optimization and learning typically regard quadrotor as a point-mass model, giving path or velocity commands then tracking the commands by outer-loop controller.
+
 However, at high speeds, planned trajectories sometimes become dynamically infeasible in actual flight, which beyond the capacity of controller.
 Although direct taking low-level bodyrate commands as output can mitigate this issue, it gets much challenging to design such a low-level policy because the transition process is so complex and less smooth that the difficulty of training significantly increases.
+
 In this paper, we propose a novel end-to-end policy that directly maps depth images to low-level bodyrate commands by reinforcement learning via differentiable simulation.
 The high-fidelity simulation in training after parameter identification significantly reduces all the gaps between training, simulation and real world.
 Analytical process by differentiable simulation provides accurate gradient to ensure efficiently training the low-level policy without expert guidance. 
 The policy employs a lightweight and the most simple inference pipeline that runs without explicit mapping, backbone networks, primitives, recurrent structures, or backend controllers, nor curriculum or privileged guidance. By inferring low-level command directly to the hardware controller, the method enables full flight envelope control and avoids the dynamic-infeasible issue.
+
 Experimental results demonstrate that the proposed approach achieves the highest success rate and the lowest jerk among state-of-the-art baselines across multiple benchmarks. The policy also exhibits strong generalization, successfully deploying zero-shot in unseen, outdoor environments while reaching speeds of up to 7.5m/s as well as stably flying in the super-dense forest.
 Furthermore, we provide the first successful demonstration of backpropagating image information through high-fidelity differentiable simulation, validating the extensibility of first-order gradient methods to other complex robotic systems.
 
