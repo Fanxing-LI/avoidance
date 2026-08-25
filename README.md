@@ -1,3 +1,5 @@
+
+
 # Simple but Stable, Fast and Safe: Achieve End-to-end Control by High-Fidelity Differentiable Simulation
 
 Obstacle avoidance is a fundamental vision-based task essential for enabling quadrotors to perform advanced applications. When planning the trajectory, existing approaches both on optimization and learning typically regard quadrotor as a point-mass model, giving path or velocity commands then tracking the commands by outer-loop controller.
@@ -39,7 +41,7 @@ python exps/real_world/run.py -e navigation -a SHAC -t 1
 # python exps/real_world/run.py -t 1 -a PPO -e navigation -c comment
 python exps/real_world/run.py -e navigation -a SHAC -t 0 -w SHAC_std_1.zip
 ```
-If you define a new comment, replace your comment with `std` in the last command.
+If you define a new comment, replace `std` with your comment in the last command.
 
 ## Download the pre-trained weights
 [Download](https://drive.google.com/file/d/1vKx2L6aIMCFVegsi_5F9uyyCsQg7XDZm/view?usp=sharing) the pre-trained weights and put it in `avoidance/exps/real_world/saved/navigation/`.
@@ -61,5 +63,3 @@ Or you wanna train the checkpoint using another algorithm:
 ```bash
 python exps/real_world/run.py  -e navigation  -a BPTT -t 1 -w checkpoint.zip
 ```
-
-
